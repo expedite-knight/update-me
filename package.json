@@ -1,6 +1,6 @@
 {
   "name": "router_app_frontend_v3",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -25,6 +25,8 @@
     "react-native": "0.71.11",
     "react-native-background-actions": "^3.0.0",
     "react-native-dotenv": "^3.4.9",
+    "react-native-dropdown-picker": "^5.4.6",
+    "react-native-dropdown-select-list": "^2.0.4",
     "react-native-geolocation-service": "^5.3.1",
     "react-native-gesture-handler": "^1.7.0",
     "react-native-get-random-values": "^1.9.0",

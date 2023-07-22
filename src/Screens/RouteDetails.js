@@ -1,5 +1,11 @@
 import React, {useState, useContext, useEffect} from 'react';
-import {View, Text, StyleSheet, Dimensions} from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  ActivityIndicator,
+} from 'react-native';
 import {
   ScrollView,
   TextInput,
@@ -8,9 +14,10 @@ import {
 import CheckBox from '@react-native-community/checkbox';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {UserContext} from '../../UserContext';
-import {STORE_KEY, APP_URL} from '@env';
+import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import {useNavigation} from '@react-navigation/native';
 import uuid from 'react-uuid';
+import {SelectList} from 'react-native-dropdown-select-list';
 
 const {width, height} = Dimensions.get('screen');
 
@@ -25,6 +32,7 @@ const RouteDetails = ({route, navigation}) => {
     useContext(UserContext);
   const nav = useNavigation();
   const {routeId} = route.params;
+  const [loading, setLoading] = useState(true);
 
   const handleAddSubscriber = () => {
     if (subscribers.length < 5 && subscriber.trim().length >= 10) {
@@ -41,7 +49,7 @@ const RouteDetails = ({route, navigation}) => {
 
   useEffect(() => {
     if (jwt) {
-      fetch(`${APP_URL}/api/v1/routes/details`, {
+      fetch(`${DEV_URL}/api/v1/routes/details`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -65,6 +73,7 @@ const RouteDetails = ({route, navigation}) => {
           } else {
             console.log('Something went wrong...');
           }
+          setLoading(false);
         })
         .catch(error => {
           console.log('error fetching details:', error[0]);
@@ -76,7 +85,7 @@ const RouteDetails = ({route, navigation}) => {
   }, [jwt]);
 
   function handleUpdateRoute() {
-    fetch(`${APP_URL}/api/v1/routes/update`, {
+    fetch(`${DEV_URL}/api/v1/routes/update`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -107,7 +116,7 @@ const RouteDetails = ({route, navigation}) => {
   }
 
   function handleDeleteRoute() {
-    fetch(`${APP_URL}/api/v1/routes/delete`, {
+    fetch(`${DEV_URL}/api/v1/routes/delete`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -134,88 +143,117 @@ const RouteDetails = ({route, navigation}) => {
       });
   }
 
+  const data = [
+    {key: '1', value: '5m'},
+    {key: '2', value: '10m'},
+    {key: '3', value: '20m'},
+    {key: '4', value: '30m'},
+    {key: '5', value: '1h'},
+  ];
+
+  //add loaders for every screen and try to change the general background
+  //from gray to white AND mess with the stack and the SPLASH SCREEN
+  //AND add a popup confirmation if a route started successfully and the
+  //texts were sent out, if a text was not sent out because a user is not
+  //verified send an alert that that number has not yet been verified and
+  //will not receive any texts until they do
   return (
-    <View style={styles.containerStyle}>
-      <View style={{alignItems: 'center', gap: 10}}>
-        <Text style={styles.headerTextStyles}>Route:</Text>
-        <Text>{routeId}</Text>
-      </View>
-      <View style={styles.inputsStyles}>
-        <TextInput
-          style={styles.inputStyles}
-          placeholder="Route name"
-          value={name}
-          onChangeText={e => setName(e.valueOf())}
-        />
-        <TextInput
-          style={styles.inputStyles}
-          placeholder="Destination address"
-          value={destination}
-          onChangeText={e => setDestination(e.valueOf())}
-          enabled={false}
-          editable={false}
-        />
-        <TextInput
-          style={styles.inputStyles}
-          placeholder="Interval in mins"
-          value={interval}
-          onChangeText={e => setInterval(e.valueOf())}
-        />
-        {/* <Text style={{textAlign: 'center', fontSize: 20}}>Subscribers</Text> */}
-        <View
-          style={{
-            flexDirection: 'row',
-            width: width - 100,
-            gap: 10,
-          }}>
-          <TextInput
-            style={{...styles.inputStyles, flex: 1}}
-            placeholder="Subscriber"
-            value={subscriber}
-            onChangeText={e => setSubscriber(e.valueOf())}
-          />
-          <TouchableOpacity
-            style={{
-              ...styles.buttonStyles,
-              backgroundColor:
-                subscribers.length >= 5 ? 'rgba(0,0,0,.5)' : 'black',
-              width: 100,
-            }}
-            onPress={handleAddSubscriber}
-            disabled={subscribers.length >= 5 ? true : false}>
-            <Text style={{...styles.buttonTextStyles}}>Add</Text>
-          </TouchableOpacity>
-        </View>
-        {subscribers.map((value, index) => (
-          <View key={index} index={index} style={styles.subscriber}>
-            <Text style={{fontSize: 20}}>{value}</Text>
+    <>
+      {!loading ? (
+        <ScrollView
+          contentContainerStyle={styles.containerStyle}
+          scrollEnabled={true}>
+          <View style={{alignItems: 'center', gap: 10}}>
+            <Text style={styles.headerTextStyles}>Route:</Text>
+            <Text>{routeId}</Text>
+          </View>
+          <View style={styles.inputsStyles}>
+            <TextInput
+              style={styles.inputStyles}
+              placeholder="Route name"
+              value={name}
+              onChangeText={e => setName(e.valueOf())}
+            />
+            <TextInput
+              style={styles.inputStyles}
+              placeholder="Destination address"
+              value={destination}
+              onChangeText={e => setDestination(e.valueOf())}
+              enabled={false}
+              editable={false}
+            />
+            <SelectList
+              setSelected={val => setInterval(val)}
+              data={data}
+              save="value"
+              placeholder={interval === 1 ? '1h' : interval.concat('m')}
+              searchPlaceholder="Interval"
+              dropdownTextStyles={{fontSize: 20}}
+              inputStyles={{
+                fontSize: 20,
+              }}
+            />
+            {/* <Text style={{textAlign: 'center', fontSize: 20}}>Subscribers</Text> */}
+            <View
+              style={{
+                flexDirection: 'row',
+                width: width - 40,
+                gap: 10,
+              }}>
+              <TextInput
+                style={{...styles.inputStyles, flex: 1}}
+                placeholder="Subscriber"
+                value={subscriber}
+                onChangeText={e => setSubscriber(e.valueOf())}
+              />
+              <TouchableOpacity
+                style={{
+                  ...styles.buttonStyles,
+                  backgroundColor:
+                    subscribers.length >= 5 ? 'rgba(0,0,0,.5)' : 'black',
+                  width: 100,
+                }}
+                onPress={handleAddSubscriber}
+                disabled={subscribers.length >= 5 ? true : false}>
+                <Text style={{...styles.buttonTextStyles}}>Add</Text>
+              </TouchableOpacity>
+            </View>
+            {subscribers.map((value, index) => (
+              <View key={index} index={index} style={styles.subscriber}>
+                <Text style={{fontSize: 20}}>{value}</Text>
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => removeSubscriber(index)}>
+                  <Icon name="trash" size={25} color={'#de3623'} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+          <View style={{gap: 10}}>
             <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => removeSubscriber(index)}>
-              <Icon name="trash" size={25} color={'#de3623'} />
+              style={styles.buttonStyles}
+              onPress={handleUpdateRoute}>
+              <Text style={styles.buttonTextStyles}>Update</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{...styles.buttonStyles, backgroundColor: 'red'}}
+              onPress={handleDeleteRoute}>
+              <Text style={styles.buttonTextStyles}>Delete</Text>
             </TouchableOpacity>
           </View>
-        ))}
-      </View>
-      <View style={{gap: 10}}>
-        <TouchableOpacity
-          style={styles.buttonStyles}
-          onPress={handleUpdateRoute}>
-          <Text style={styles.buttonTextStyles}>Update</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{...styles.buttonStyles, backgroundColor: 'red'}}
-          onPress={handleDeleteRoute}>
-          <Text style={styles.buttonTextStyles}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        </ScrollView>
+      ) : (
+        <View style={styles.containerStyle}>
+          <ActivityIndicator size="small" color="#0000ff" />
+        </View>
+      )}
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   containerStyle: {
-    flex: 1,
+    height: height,
     alignItems: 'center',
     backgroundColor: 'white',
     gap: 50,
@@ -242,20 +280,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: '#1bab05',
-    width: width - 100,
+    width: width - 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   inputsStyles: {
     backgroundColor: 'white',
     gap: 20,
-    width: width - 100,
+    width: width - 40,
   },
   inputStyles: {
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderBottomColor: 'gray',
-    borderBottomWidth: 2,
+    paddingVertical: 10,
+    borderBottomColor: 'gainsboro',
+    borderBottomWidth: 1,
     fontSize: 20,
     backgroundColor: 'white',
   },

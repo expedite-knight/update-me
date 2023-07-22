@@ -10,13 +10,11 @@ import {
 } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import {useState, useEffect, useContext} from 'react';
-import {STORE_KEY, APP_URL} from '@env';
+import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import {useNavigation} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Geolocation from 'react-native-geolocation-service';
-import GestureRecognizer from 'react-native-swipe-gestures';
 import uuid from 'react-uuid';
-import {UserContext} from '../../UserContext';
 
 const {width, height} = Dimensions.get('screen');
 
@@ -67,11 +65,9 @@ const RouteCard = props => {
         },
       );
       if (backPerm === 'granted' && frontPerm == 'granted') {
-        console.log('Sending current location to server: ', props.jwt);
-
         Geolocation.getCurrentPosition(
           position => {
-            fetch(`${APP_URL}/api/v1/routes/activate`, {
+            fetch(`${DEV_URL}/api/v1/routes/activate`, {
               method: 'POST',
               credentials: 'include',
               headers: {
@@ -87,16 +83,39 @@ const RouteCard = props => {
                   lat: position.coords.latitude,
                   long: position.coords.longitude,
                 },
+                offset: new Date().getTimezoneOffset() / 60,
               }),
             })
               .then(res => res.json())
               .then(data => {
-                if (data.status !== 200) {
+                if (data.status === 200) {
+                  props.openPopup('Route activated successfully', '#1e90ff');
+                  setTimeout(() => {
+                    props.closePopup();
+                  }, 3000);
+                } else if (data.status === 409) {
                   setActive(false);
+                  props.openPopup(
+                    'Another route is already active, would you like to override it?',
+                    'white',
+                    true,
+                    props.id,
+                  );
+                } else {
+                  setActive(false);
+                  props.openPopup('Route not activated', 'red');
+                  setTimeout(() => {
+                    props.closePopup();
+                  }, 3000);
                 }
               })
               .catch(error => {
                 console.log('ERROR:', error);
+                setActive(false);
+                props.openPopup('Route not activated', 'red');
+                setTimeout(() => {
+                  props.closePopup();
+                }, 3000);
               });
           },
           error => {
@@ -142,7 +161,7 @@ const RouteCard = props => {
 
         Geolocation.getCurrentPosition(
           position => {
-            fetch(`${APP_URL}/api/v1/routes/deactivate`, {
+            fetch(`${DEV_URL}/api/v1/routes/deactivate`, {
               method: 'POST',
               credentials: 'include',
               headers: {
@@ -158,12 +177,22 @@ const RouteCard = props => {
                   lat: position.coords.latitude,
                   long: position.coords.longitude,
                 },
+                offset: new Date().getTimezoneOffset() / 60,
               }),
             })
               .then(res => res.json())
               .then(data => {
                 if (data.status !== 200) {
                   setActive(true);
+                  props.openPopup('Unable to deactive route', 'red');
+                  setTimeout(() => {
+                    props.closePopup();
+                  }, 3000);
+                } else {
+                  props.openPopup('Route deactivated successfully', '#1e90ff');
+                  setTimeout(() => {
+                    props.closePopup();
+                  }, 3000);
                 }
               })
               .catch(error => {
@@ -185,7 +214,7 @@ const RouteCard = props => {
 
   function handleDeleteRoute() {
     console.log('Deleting route...');
-    fetch(`${APP_URL}/api/v1/routes/delete`, {
+    fetch(`${DEV_URL}/api/v1/routes/delete`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -201,8 +230,9 @@ const RouteCard = props => {
     })
       .then(res => res.json())
       .then(data => {
+        console.log('Route deleted: ', data);
         if (data.status === 204) {
-          nav.navigate('Routes', {update: uuid()});
+          props.toggleUpdate(uuid());
         } else {
           setError(data.body.error[0]);
         }
@@ -222,7 +252,7 @@ const RouteCard = props => {
         style={styles.container}
         onPress={() => nav.navigate('RouteDetails', {routeId: props.id})}>
         <View>
-          <Text style={{fontWeight: '600', fontSize: 16}}>
+          <Text style={{fontWeight: '400', fontSize: 20, color: 'black'}}>
             {props.routeName}
           </Text>
         </View>
@@ -255,11 +285,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 20,
     backgroundColor: 'white',
-    borderRadius: 20,
     height: 75,
     width: width - 40,
     overflow: 'visible',
-    elevation: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: 'gainsboro',
   },
   content: {},
   controls: {},
@@ -272,7 +302,6 @@ const styles = StyleSheet.create({
     height: 60,
     width: 60,
     marginHorizontal: 10,
-    elevation: 5,
   },
 });
 

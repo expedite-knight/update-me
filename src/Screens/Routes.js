@@ -1,17 +1,16 @@
 import React, {useEffect, useState, useContext} from 'react';
 import {
-  SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
   Dimensions,
   PermissionsAndroid,
+  ActivityIndicator,
+  Animated,
 } from 'react-native';
 import {UserContext} from '../../UserContext';
-import {STORE_KEY, APP_URL} from '@env';
+import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import RouteCard from '../Components/RouteCard';
 import {useNavigation} from '@react-navigation/native';
 import {TouchableOpacity} from 'react-native-gesture-handler';
@@ -19,18 +18,48 @@ import Navbar from '../Components/Navbar';
 import BackgroundService from 'react-native-background-actions';
 import Geolocation from 'react-native-geolocation-service';
 import moment from 'moment';
-import "react-native-get-random-values";
-import uuid from 'react-uuid'
+import 'react-native-get-random-values';
+import uuid from 'react-uuid';
+import Popup from '../Components/Popup';
 
 const {width, height} = Dimensions.get('screen');
 
-//disable the create route button if a user has 5 routes or more
-//this will only be for actual subscribers
+//also alert the user if a number has not been verified yet
+//maybe use the verified numbers object when showing subscribers
+//and not just a string, that way it will be easy to tell if a number has
+//been verified yet or not and display that on the app/frontend
 const Routes = ({route}) => {
   const nav = useNavigation();
   const [jwt, setJwt, handleStoreToken] = useContext(UserContext);
   const [routes, setRoutes] = useState([]);
-  const update = route?.params?.update;
+  const [update, setUpdate] = useState(route?.params?.update);
+  const [loading, setLoading] = useState(false);
+  const [popupY, setPopupY] = useState(new Animated.Value(-height));
+  const [popupText, setPopupText] = useState('');
+  const [popupBackground, setPopupBackground] = useState('#1e90ff');
+  const [isPopupPrompt, setIsPopupPrompt] = useState(false);
+  const [overrideId, setOverrideId] = useState('');
+
+  const openPopup = (text, background, prompt, routeId) => {
+    setPopupText(text);
+    setPopupBackground(background);
+    setIsPopupPrompt(prompt);
+    setOverrideId(routeId);
+
+    Animated.timing(popupY, {
+      duration: 300,
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closePopup = () => {
+    Animated.timing(popupY, {
+      duration: 300,
+      toValue: -height,
+      useNativeDriver: true,
+    }).start();
+  };
 
   useEffect(() => {
     if (!jwt) {
@@ -39,17 +68,13 @@ const Routes = ({route}) => {
     } else {
       if (!BackgroundService.isRunning()) handleStartTask();
     }
-  }, []);
+    setUpdate(route?.params?.update);
+  }, [route.params]);
 
   //---------put this in a custom hook? OR its own module---------
-
-  //this whole thing works but now you just need to start this task
-  //when the user logins in and send the users updated location
-  ///to the backend via post request
   const sleep = time =>
     new Promise(resolve => setTimeout(() => resolve(), time));
 
-  //run this task when component mounts
   const veryIntensiveTask = async taskDataArguments => {
     try {
       const frontPerm = await PermissionsAndroid.request(
@@ -81,7 +106,7 @@ const Routes = ({route}) => {
             Geolocation.getCurrentPosition(
               position => {
                 const date = new Date(position.timestamp);
-                fetch(`${APP_URL}/api/v1/users/location/update`, {
+                fetch(`${DEV_URL}/api/v1/users/location/update`, {
                   method: 'POST',
                   credentials: 'include',
                   headers: {
@@ -94,18 +119,21 @@ const Routes = ({route}) => {
                   body: JSON.stringify({
                     lat: position.coords.latitude,
                     long: position.coords.longitude,
+                    offset: new Date().getTimezoneOffset() / 60,
                   }),
                 })
                   .then(res => res.json())
                   .then(async data => {
-                    if (data.status === 200) {
+                    if (data.status === 204) {
                       console.log(
                         'Location updated at: ',
                         moment(date).format('LTS'),
                       );
-                    } else {
+                    } else if (data.status === 403) {
                       console.log('User has logged out...');
                       handleLogout();
+                    } else if (data.status === 200) {
+                      setUpdate(uuid());
                     }
                   })
                   .catch(error => {
@@ -159,17 +187,67 @@ const Routes = ({route}) => {
   };
   //--------------------------------------------------------------
 
-  //this is where logout happens
   async function handleLogout() {
     handleStoreToken('');
     await handleStopTask();
     nav.navigate('Login');
   }
 
-  useEffect(() => {
+  async function handleRouteOverride() {
+    Geolocation.getCurrentPosition(
+      position => {
+        const date = new Date(position.timestamp);
+        fetch(`${DEV_URL}/api/v1/routes/activate/override`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: jwt,
+            'User-Agent': 'any-name',
+          },
+          mode: 'cors',
+          body: JSON.stringify({
+            route: overrideId,
+            currentLocation: {
+              lat: position.coords.latitude,
+              long: position.coords.longitude,
+            },
+            offset: new Date().getTimezoneOffset() / 60,
+          }),
+        })
+          .then(res => res.json())
+          .then(async data => {
+            if (data.status === 200) {
+              closePopup();
+              setTimeout(() => {
+                setUpdate(uuid());
+              }, 500);
+            } else {
+              closePopup();
+              setTimeout(() => {
+                openPopup('Unable to override route', 'red');
+              }, 1000);
+              setTimeout(() => {
+                closePopup();
+              }, 4000);
+            }
+          })
+          .catch(error => {
+            console.log('Unable to update location with ERROR:', error);
+          });
+      },
+      error => {
+        console.log(error.code, error.message);
+      },
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  }
 
+  useEffect(() => {
+    setLoading(true);
     if (jwt) {
-      fetch(`${APP_URL}/api/v1/users/routes`, {
+      fetch(`${DEV_URL}/api/v1/users/routes`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -184,6 +262,7 @@ const Routes = ({route}) => {
         .then(data => {
           if (data.status === 200) {
             setRoutes(data.routes);
+            setLoading(false);
           } else {
             console.log(
               'STATUS:',
@@ -205,27 +284,52 @@ const Routes = ({route}) => {
   }, [jwt, update]);
 
   return (
-    <View style={styles.containerStyle}>
-      <TouchableOpacity
-        style={styles.mainButton}
-        onPress={() => nav.navigate('CreateRoute', {update: uuid()})}>
-        <Text style={styles.buttonTextStyles}>Create Route</Text>
-      </TouchableOpacity>
-      <View style={{...styles.contentStyles}}>
-        {routes.map(route => {
-          return (
-            <RouteCard
-              id={route._id}
-              key={route._id}
-              routeName={route.routeName}
-              jwt={jwt}
-              active={route.active}
-            />
-          );
-        })}
-      </View>
-      <Navbar handleLogout={handleLogout} />
-    </View>
+    <>
+      <Animated.View
+        style={{
+          transform: [{translateY: popupY}],
+          zIndex: 1,
+        }}>
+        <Popup
+          background={popupBackground}
+          prompt={isPopupPrompt}
+          closePopup={closePopup}
+          handleRouteOverride={handleRouteOverride}>
+          {popupText}
+        </Popup>
+      </Animated.View>
+      <ScrollView
+        contentContainerStyle={styles.containerStyle}
+        scrollEnabled={true}>
+        <TouchableOpacity
+          style={styles.mainButton}
+          onPress={() => nav.navigate('CreateRoute')}>
+          <Text style={styles.buttonTextStyles}>Create Route</Text>
+        </TouchableOpacity>
+        {loading ? (
+          <View style={styles.containerStyle}>
+            <ActivityIndicator size="small" color="#0000ff" />
+          </View>
+        ) : (
+          <View style={{...styles.contentStyles}}>
+            {routes.map(route => {
+              return (
+                <RouteCard
+                  id={route._id}
+                  key={route._id}
+                  routeName={route.routeName}
+                  jwt={jwt}
+                  active={route.active}
+                  toggleUpdate={uuid => setUpdate(uuid)}
+                  openPopup={openPopup}
+                  closePopup={closePopup}
+                />
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
+    </>
   );
 };
 
@@ -236,6 +340,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     gap: 20,
     padding: 20,
+    position: 'relative',
   },
   contentStyles: {
     flex: 1,
@@ -265,10 +370,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
     backgroundColor: '#1bab05',
-    elevation: 10,
     borderRadius: 20,
     height: 65,
-    width: width - 100,
+    width: width - 40,
     overflow: 'visible',
   },
 });

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import {TextInput} from 'react-native-gesture-handler';
 import {STORE_KEY, APP_URL} from '@env';
@@ -20,6 +21,7 @@ const Signup = () => {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [loading, setLoading] = useState(false);
   const nav = useNavigation();
 
   const handleCreateAccount = () => {
@@ -31,6 +33,7 @@ const Signup = () => {
     ) {
       setError('Please fill out all fields');
     } else {
+      setLoading(true);
       fetch(`${APP_URL}/api/v1/auth/register`, {
         method: 'POST',
         credentials: 'include',
@@ -54,6 +57,7 @@ const Signup = () => {
           } else {
             setError(data.body.message[0]);
           }
+          setLoading(false);
         })
         .catch(error => {
           console.log('Unable to create account:', error);
@@ -62,54 +66,62 @@ const Signup = () => {
   };
 
   return (
-    <View style={styles.containerStyle}>
-      <Text style={styles.headerTextStyles}>Sign up</Text>
-      <View style={styles.inputsStyles}>
-        <TextInput
-          style={styles.inputStyles}
-          placeholder="Email"
-          value={email}
-          onChangeText={e => setEmail(e.valueOf())}
-        />
-        <TextInput
-          style={styles.inputStyles}
-          placeholder="Password"
-          value={password}
-          secureTextEntry={true}
-          onChangeText={e => setPassword(e.valueOf())}
-        />
-        <TextInput
-          style={styles.inputStyles}
-          placeholder="First name"
-          value={firstName}
-          onChangeText={e => setFirstName(e.valueOf())}
-        />
-        <TextInput
-          style={styles.inputStyles}
-          placeholder="Last name"
-          value={lastName}
-          onChangeText={e => setLastName(e.valueOf())}
-        />
-      </View>
-      <View style={{gap: 10}}>
-        <TouchableOpacity
-          style={styles.buttonStyles}
-          onPress={handleCreateAccount}>
-          <Text style={styles.buttonTextStyles}>Create Account</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{...styles.buttonStyles, backgroundColor: 'black'}}
-          onPress={() => {
-            setEmail('');
-            setPassword('');
-            setFirstName('');
-            setLastName('');
-          }}>
-          <Text style={styles.buttonTextStyles}>Reset</Text>
-        </TouchableOpacity>
-      </View>
-      {error && <Text style={styles.errorStyle}>{error}</Text>}
-    </View>
+    <>
+      {!loading ? (
+        <View style={styles.containerStyle}>
+          <Text style={styles.headerTextStyles}>Sign up</Text>
+          <View style={styles.inputsStyles}>
+            <TextInput
+              style={styles.inputStyles}
+              placeholder="Email"
+              value={email}
+              onChangeText={e => setEmail(e.valueOf())}
+            />
+            <TextInput
+              style={styles.inputStyles}
+              placeholder="Password"
+              value={password}
+              secureTextEntry={true}
+              onChangeText={e => setPassword(e.valueOf())}
+            />
+            <TextInput
+              style={styles.inputStyles}
+              placeholder="First name"
+              value={firstName}
+              onChangeText={e => setFirstName(e.valueOf())}
+            />
+            <TextInput
+              style={styles.inputStyles}
+              placeholder="Last name"
+              value={lastName}
+              onChangeText={e => setLastName(e.valueOf())}
+            />
+          </View>
+          <View style={{gap: 10}}>
+            <TouchableOpacity
+              style={styles.buttonStyles}
+              onPress={handleCreateAccount}>
+              <Text style={styles.buttonTextStyles}>Create Account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{...styles.buttonStyles, backgroundColor: 'black'}}
+              onPress={() => {
+                setEmail('');
+                setPassword('');
+                setFirstName('');
+                setLastName('');
+              }}>
+              <Text style={styles.buttonTextStyles}>Reset</Text>
+            </TouchableOpacity>
+          </View>
+          {error && <Text style={styles.errorStyle}>{error}</Text>}
+        </View>
+      ) : (
+        <View style={styles.containerStyle}>
+          <ActivityIndicator size="small" color="#0000ff" />
+        </View>
+      )}
+    </>
   );
 };
 
@@ -141,7 +153,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: '#1bab05',
-    width: width - 100,
+    width: width - 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -152,12 +164,12 @@ const styles = StyleSheet.create({
   },
   inputStyles: {
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderBottomColor: 'gray',
-    borderBottomWidth: 2,
+    paddingVertical: 10,
+    borderBottomColor: 'gainsboro',
+    borderBottomWidth: 1,
     fontSize: 20,
     backgroundColor: 'white',
-    width: width - 100,
+    width: width - 40,
   },
   errorStyle: {
     color: 'red',

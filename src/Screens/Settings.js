@@ -1,8 +1,14 @@
 import React, {useState, useEffect, useContext} from 'react';
-import {View, Text, StyleSheet, Dimensions} from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  ActivityIndicator,
+} from 'react-native';
 import {TextInput, TouchableOpacity} from 'react-native-gesture-handler';
 import {UserContext} from '../../UserContext';
-import {STORE_KEY, APP_URL} from '@env';
+import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import {useNavigation} from '@react-navigation/native';
 import {v4 as uuid} from 'uuid';
 
@@ -15,10 +21,12 @@ const Settings = () => {
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const nav = useNavigation();
 
   useEffect(() => {
-    fetch(`${APP_URL}/api/v1/users/details`, {
+    setLoading(true);
+    fetch(`${DEV_URL}/api/v1/users/details`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -33,6 +41,9 @@ const Settings = () => {
         if (data.status === 200) {
           setFirstName(data.user.firstName);
           setLastName(data.user.lastName);
+          setLoading(false);
+        } else {
+          nav.navigate('Login');
         }
       })
       .catch(error => {
@@ -42,7 +53,7 @@ const Settings = () => {
   }, [jwt]);
 
   const handleUpdateProfile = () => {
-    fetch(`${APP_URL}/api/v1/auth/update`, {
+    fetch(`${DEV_URL}/api/v1/auth/update`, {
       method: 'PUT',
       headers: {
         Accept: 'application/json',
@@ -75,55 +86,83 @@ const Settings = () => {
       });
   };
 
+  const handleDeleteAccount = () => {
+    fetch(`${DEV_URL}/api/v1/auth/delete`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: jwt,
+        'User-Agent': 'any-name',
+      },
+      mode: 'cors',
+    })
+      .then(res => res.json())
+      .then(async data => {
+        if (data.status === 204) {
+          console.log(data);
+          nav.navigate('Login', {update: uuid()});
+        } else {
+          setError(data.body.message[0]);
+          console.log('Unable to delete account: ', data);
+        }
+      })
+      .catch(error => {
+        console.log('error deleting account:', error);
+      });
+  };
+
   return (
-    <View style={styles.containerStyle}>
-      <Text style={styles.headerTextStyles}>Settings</Text>
-      <View style={styles.inputsStyles}>
-        <TextInput
-          placeholder="First name"
-          style={styles.inputStyles}
-          value={firstName}
-          onChangeText={e => setFirstName(e.valueOf())}
-        />
-        <TextInput
-          placeholder="Last name"
-          style={styles.inputStyles}
-          value={lastName}
-          onChangeText={e => setLastName(e.valueOf())}
-        />
-        <TextInput
-          placeholder="Password"
-          style={styles.inputStyles}
-          secureTextEntry={true}
-          value={password}
-          onChangeText={e => setPassword(e.valueOf())}
-        />
-      </View>
-      <View style={{gap: 10}}>
-        <TouchableOpacity
-          style={styles.buttonStyles}
-          onPress={handleUpdateProfile}>
-          <Text style={styles.buttonTextStyles}>Save</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{...styles.buttonStyles, backgroundColor: 'black'}}
-          onPress={() => {
-            setFirstName('');
-            setLastName('');
-            setPassword('');
-            setError('');
-          }}>
-          <Text style={styles.buttonTextStyles}>Reset</Text>
-        </TouchableOpacity>
-      </View>
-      {error && <Text style={styles.errorStyle}>{error}</Text>}
-    </View>
+    <>
+      {!loading ? (
+        <View style={styles.containerStyle}>
+          <View style={styles.inputsStyles}>
+            <TextInput
+              placeholder="First name"
+              style={styles.inputStyles}
+              value={firstName}
+              onChangeText={e => setFirstName(e.valueOf())}
+            />
+            <TextInput
+              placeholder="Last name"
+              style={styles.inputStyles}
+              value={lastName}
+              onChangeText={e => setLastName(e.valueOf())}
+            />
+            <TextInput
+              placeholder="New password"
+              style={styles.inputStyles}
+              secureTextEntry={true}
+              value={password}
+              onChangeText={e => setPassword(e.valueOf())}
+            />
+          </View>
+          <View style={{gap: 10}}>
+            <TouchableOpacity
+              style={styles.buttonStyles}
+              onPress={handleUpdateProfile}>
+              <Text style={styles.buttonTextStyles}>Save</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{...styles.buttonStyles, backgroundColor: 'red'}}
+              onPress={handleDeleteAccount}>
+              <Text style={styles.buttonTextStyles}>Delete account</Text>
+            </TouchableOpacity>
+          </View>
+          {error && <Text style={styles.errorStyle}>{error}</Text>}
+        </View>
+      ) : (
+        <View style={styles.containerStyle}>
+          <ActivityIndicator size="small" color="#0000ff" />
+        </View>
+      )}
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   containerStyle: {
-    flex: 1,
+    height: height,
     alignItems: 'center',
     backgroundColor: 'white',
     gap: 50,
@@ -150,20 +189,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: '#1bab05',
-    width: width - 100,
+    width: width - 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   inputsStyles: {
     backgroundColor: 'white',
     gap: 20,
-    width: width - 100,
+    width: width - 40,
   },
   inputStyles: {
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderBottomColor: 'gray',
-    borderBottomWidth: 2,
+    paddingVertical: 10,
+    borderBottomColor: 'gainsboro',
+    borderBottomWidth: 1,
     fontSize: 20,
     backgroundColor: 'white',
   },
