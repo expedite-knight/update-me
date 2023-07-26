@@ -8,19 +8,21 @@ import {
   PermissionsAndroid,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import {UserContext} from '../../UserContext';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import RouteCard from '../Components/RouteCard';
 import {useNavigation} from '@react-navigation/native';
 import {TouchableOpacity} from 'react-native-gesture-handler';
-import Navbar from '../Components/Navbar';
 import BackgroundService from 'react-native-background-actions';
 import Geolocation from 'react-native-geolocation-service';
 import moment from 'moment';
 import 'react-native-get-random-values';
 import uuid from 'react-uuid';
 import Popup from '../Components/Popup';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {PERMISSIONS, request} from 'react-native-permissions';
 
 const {width, height} = Dimensions.get('screen');
 
@@ -28,7 +30,7 @@ const {width, height} = Dimensions.get('screen');
 //maybe use the verified numbers object when showing subscribers
 //and not just a string, that way it will be easy to tell if a number has
 //been verified yet or not and display that on the app/frontend
-const Routes = ({route}) => {
+const Routes = ({route, navigation}) => {
   const nav = useNavigation();
   const [jwt, setJwt, handleStoreToken] = useContext(UserContext);
   const [routes, setRoutes] = useState([]);
@@ -39,6 +41,7 @@ const Routes = ({route}) => {
   const [popupBackground, setPopupBackground] = useState('#1e90ff');
   const [isPopupPrompt, setIsPopupPrompt] = useState(false);
   const [overrideId, setOverrideId] = useState('');
+  const insets = useSafeAreaInsets();
 
   const openPopup = (text, background, prompt, routeId) => {
     setPopupText(text);
@@ -64,7 +67,7 @@ const Routes = ({route}) => {
   useEffect(() => {
     if (!jwt) {
       console.log('User not logged in.');
-      nav.navigate('Login');
+      // nav.navigate('Login');
     } else {
       if (!BackgroundService.isRunning()) handleStartTask();
     }
@@ -76,84 +79,93 @@ const Routes = ({route}) => {
     new Promise(resolve => setTimeout(() => resolve(), time));
 
   const veryIntensiveTask = async taskDataArguments => {
-    try {
-      const frontPerm = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: 'Foreground Geolocation Permission',
-          message: 'Can we access your location?',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-      const backPerm = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
-        {
-          title: 'Background Geolocation Permission',
-          message:
-            'Can we access your location while the app is in the background? This is essential for the apps functionality.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-      if (backPerm === 'granted' && frontPerm == 'granted') {
-        console.log('You can use Geolocation');
-        const {delay} = taskDataArguments;
-        await new Promise(async resolve => {
-          for (let i = 0; BackgroundService.isRunning(); i++) {
-            Geolocation.getCurrentPosition(
-              position => {
-                const date = new Date(position.timestamp);
-                fetch(`${DEV_URL}/api/v1/users/location/update`, {
-                  method: 'POST',
-                  credentials: 'include',
-                  headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    Authorization: jwt,
-                    'User-Agent': 'any-name',
-                  },
-                  mode: 'cors',
-                  body: JSON.stringify({
-                    lat: position.coords.latitude,
-                    long: position.coords.longitude,
-                    offset: new Date().getTimezoneOffset() / 60,
-                  }),
-                })
-                  .then(res => res.json())
-                  .then(async data => {
-                    if (data.status === 204) {
-                      console.log(
-                        'Location updated at: ',
-                        moment(date).format('LTS'),
-                      );
-                    } else if (data.status === 403) {
-                      console.log('User has logged out...');
-                      handleLogout();
-                    } else if (data.status === 200) {
-                      setUpdate(uuid());
-                    }
+    if (Platform.OS === 'android') {
+      try {
+        const frontPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Foreground Geolocation Permission',
+            message: 'Can we access your location?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        const backPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+          {
+            title: 'Background Geolocation Permission',
+            message:
+              'Can we access your location while the app is in the background? This is essential for the apps functionality.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (backPerm === 'granted' && frontPerm == 'granted') {
+          console.log('You can use Geolocation');
+          const {delay} = taskDataArguments;
+          await new Promise(async resolve => {
+            for (let i = 0; BackgroundService.isRunning(); i++) {
+              Geolocation.getCurrentPosition(
+                position => {
+                  const date = new Date(position.timestamp);
+                  fetch(`${DEV_URL}/api/v1/users/location/update`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                      Authorization: jwt,
+                      'User-Agent': 'any-name',
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({
+                      lat: position.coords.latitude,
+                      long: position.coords.longitude,
+                      offset: new Date().getTimezoneOffset() / 60,
+                    }),
                   })
-                  .catch(error => {
-                    console.log('Unable to update location with ERROR:', error);
-                  });
-              },
-              error => {
-                console.log(error.code, error.message);
-              },
-              {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
-            );
+                    .then(res => res.json())
+                    .then(async data => {
+                      if (data.status === 204) {
+                        console.log(
+                          'Location updated at: ',
+                          moment(date).format('LTS'),
+                        );
+                      } else if (data.status === 403) {
+                        console.log('User has logged out...');
+                        handleLogout();
+                      } else if (data.status === 200) {
+                        setUpdate(uuid());
+                      }
+                    })
+                    .catch(error => {
+                      console.log(
+                        'Unable to update location with ERROR:',
+                        error,
+                      );
+                    });
+                },
+                error => {
+                  console.log(error.code, error.message);
+                },
+                {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+              );
 
-            await sleep(delay);
-          }
-        });
-      } else {
-        console.log('You cannot use Geolocation');
+              await sleep(delay);
+            }
+          });
+        } else {
+          console.log('You cannot use Geolocation');
+        }
+      } catch (err) {
+        console.log(err);
       }
-    } catch (err) {
-      console.log(err);
+    } else {
+      request(PERMISSIONS.IOS.CONTACTS).then(result => {
+        console.log(result);
+      });
     }
   };
 
@@ -271,15 +283,14 @@ const Routes = ({route}) => {
               data.body.message,
             );
             handleStoreToken('');
-            nav.navigate('Login');
+            // nav.navigate('Login');
           }
         })
         .catch(error => {
           console.log('error getting routes:', error);
         });
     } else {
-      console.log('User not logged in.');
-      nav.navigate('Login');
+      // nav.navigate('Login');
     }
   }, [jwt, update]);
 
@@ -303,15 +314,18 @@ const Routes = ({route}) => {
         scrollEnabled={true}>
         <TouchableOpacity
           style={styles.mainButton}
-          onPress={() => nav.navigate('CreateRoute')}>
+          onPress={() => navigation.push('CreateRoute')}>
           <Text style={styles.buttonTextStyles}>Create Route</Text>
         </TouchableOpacity>
         {loading ? (
           <View style={styles.containerStyle}>
-            <ActivityIndicator size="small" color="#0000ff" />
+            <ActivityIndicator size="small" color="black" />
           </View>
         ) : (
-          <View style={{...styles.contentStyles}}>
+          <View
+            style={{
+              ...styles.contentStyles,
+            }}>
             {routes.map(route => {
               return (
                 <RouteCard

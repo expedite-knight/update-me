@@ -8,21 +8,23 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {TextInput} from 'react-native-gesture-handler';
-import {STORE_KEY, APP_URL} from '@env';
-import {useNavigation} from '@react-navigation/native';
+import {STORE_KEY, APP_URL, DEV_URL} from '@env';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 const {width, height} = Dimensions.get('screen');
 
 //mingold1@gmail.com
 //Password1
-const Signup = () => {
+const Signup = ({navigation}) => {
   const [error, setError] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
-  const nav = useNavigation();
+  const insets = useSafeAreaInsets();
+
+  console.log(insets);
 
   const handleCreateAccount = () => {
     if (
@@ -34,7 +36,7 @@ const Signup = () => {
       setError('Please fill out all fields');
     } else {
       setLoading(true);
-      fetch(`${APP_URL}/api/v1/auth/register`, {
+      fetch(`${DEV_URL}/api/v1/auth/register`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -53,7 +55,7 @@ const Signup = () => {
         .then(async data => {
           console.log(data.body);
           if (data.status === 200) {
-            nav.navigate('Login');
+            navigation.navigate('Login');
           } else {
             setError(data.body.message[0]);
           }

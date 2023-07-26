@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
 import {TextInput, TouchableOpacity} from 'react-native-gesture-handler';
 import {UserContext} from '../../UserContext';
@@ -115,7 +116,7 @@ const Settings = () => {
   return (
     <>
       {!loading ? (
-        <View style={styles.containerStyle}>
+        <SafeAreaView style={styles.containerStyle}>
           <View style={styles.inputsStyles}>
             <TextInput
               placeholder="First name"
@@ -150,7 +151,7 @@ const Settings = () => {
             </TouchableOpacity>
           </View>
           {error && <Text style={styles.errorStyle}>{error}</Text>}
-        </View>
+        </SafeAreaView>
       ) : (
         <View style={styles.containerStyle}>
           <ActivityIndicator size="small" color="#0000ff" />

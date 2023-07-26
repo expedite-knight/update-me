@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import {
   ScrollView,
@@ -22,7 +23,7 @@ import DropDownPicker from 'react-native-dropdown-picker';
 
 const {width, height} = Dimensions.get('screen');
 
-const CreateRoute = () => {
+const CreateRoute = ({navigation}) => {
   const [quickRoute, setQuickRoute] = useState(false);
   const [name, setName] = useState('');
   const [destination, setDestination] = useState('');
@@ -84,6 +85,7 @@ const CreateRoute = () => {
     {key: '3', value: '20m'},
     {key: '4', value: '30m'},
     {key: '5', value: '1h'},
+    {key: '10', value: '10'},
   ];
 
   return (
@@ -112,7 +114,7 @@ const CreateRoute = () => {
               save="value"
               placeholder="Interval"
               searchPlaceholder="Interval"
-              dropdownTextStyles={{fontSize: 20}}
+              dropdownTextStyles={{fontSize: 16}}
               inputStyles={{
                 fontSize: 20,
               }}
@@ -121,6 +123,7 @@ const CreateRoute = () => {
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
+                gap: 10,
               }}>
               <CheckBox
                 disabled={false}

@@ -13,6 +13,7 @@ import {
 } from 'react-native-gesture-handler';
 import CheckBox from '@react-native-community/checkbox';
 import Icon from 'react-native-vector-icons/Ionicons';
+import Foundation from 'react-native-vector-icons/Foundation';
 import {UserContext} from '../../UserContext';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import {useNavigation} from '@react-navigation/native';
@@ -35,8 +36,21 @@ const RouteDetails = ({route, navigation}) => {
   const [loading, setLoading] = useState(true);
 
   const handleAddSubscriber = () => {
-    if (subscribers.length < 5 && subscriber.trim().length >= 10) {
-      setSubscribers(prev => [...prev, '+1'.concat(subscriber)]);
+    if (subscribers.length < 5 && subscriber.trim().length === 10) {
+      setSubscribers(prev => [
+        ...prev,
+        {number: '+1'.concat(subscriber), verified: true, new: true},
+      ]);
+      setSubscriber('');
+    } else if (
+      subscribers.length < 5 &&
+      subscriber.trim().length === 11 &&
+      subscriber.indexOf(1) === 0
+    ) {
+      setSubscribers(prev => [
+        ...prev,
+        {number: '+'.concat(subscriber), verified: true, new: true},
+      ]);
       setSubscriber('');
     }
   };
@@ -151,12 +165,6 @@ const RouteDetails = ({route, navigation}) => {
     {key: '5', value: '1h'},
   ];
 
-  //add loaders for every screen and try to change the general background
-  //from gray to white AND mess with the stack and the SPLASH SCREEN
-  //AND add a popup confirmation if a route started successfully and the
-  //texts were sent out, if a text was not sent out because a user is not
-  //verified send an alert that that number has not yet been verified and
-  //will not receive any texts until they do
   return (
     <>
       {!loading ? (
@@ -193,7 +201,6 @@ const RouteDetails = ({route, navigation}) => {
                 fontSize: 20,
               }}
             />
-            {/* <Text style={{textAlign: 'center', fontSize: 20}}>Subscribers</Text> */}
             <View
               style={{
                 flexDirection: 'row',
@@ -220,11 +227,27 @@ const RouteDetails = ({route, navigation}) => {
             </View>
             {subscribers.map((value, index) => (
               <View key={index} index={index} style={styles.subscriber}>
-                <Text style={{fontSize: 20}}>{value}</Text>
+                <View
+                  style={{flexDirection: 'row', gap: 10, alignItems: 'center'}}>
+                  <Text
+                    style={{
+                      fontSize: 20,
+                      color: value.new ? '#1bab05' : 'black',
+                    }}>
+                    {value.number}
+                  </Text>
+                  {!value.verified && (
+                    <Icon
+                      name="alert-circle-outline"
+                      size={25}
+                      color={'#de3623'}
+                    />
+                  )}
+                </View>
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => removeSubscriber(index)}>
-                  <Icon name="trash" size={25} color={'#de3623'} />
+                  <Icon name="trash" size={25} color={'gray'} />
                 </TouchableOpacity>
               </View>
             ))}

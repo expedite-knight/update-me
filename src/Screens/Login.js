@@ -41,12 +41,11 @@ const Login = ({navigation}) => {
     })
       .then(res => res.json())
       .then(async data => {
-        console.log(data);
         if (data.status === 200) {
           await handleStoreToken(data.body.jwtToken);
           setJwt(data.body.jwtToken);
           setError('');
-          navigation.navigate('Routes');
+          nav.navigate('Routes');
         } else {
           setError('Incorrect email or password');
         }
@@ -82,7 +81,7 @@ const Login = ({navigation}) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={{...styles.buttonStyles, backgroundColor: 'black'}}
-            onPress={() => nav.navigate('Signup')}>
+            onPress={() => navigation.push('Signup')}>
             <Text style={styles.buttonTextStyles}>Sign up</Text>
           </TouchableOpacity>
         </View>
