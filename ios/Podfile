@@ -57,6 +57,12 @@ target 'router_app_frontend_v3' do
     )
     __apply_Xcode_12_5_M1_post_install_workaround(installer)
   end
-end
 
-pod 'RNVectorIcons', :path => '../node_modules/react-native-vector-icons'
+  pod 'RNVectorIcons', :path => '../node_modules/react-native-vector-icons'
+
+  permissions_path = '../node_modules/react-native-permissions/ios'
+  pod 'Permission-LocationAlways', :path => "#{permissions_path}/LocationAlways/Permission-LocationAlways.podspec"
+  pod 'Permission-LocationWhenInUse', :path => "#{permissions_path}/LocationWhenInUse/Permission-LocationWhenInUse.podspec"
+  pod 'Permission-Contacts', :path => "#{permissions_path}/Contacts/Permission-Contacts.podspec"
+
+end

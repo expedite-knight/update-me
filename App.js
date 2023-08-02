@@ -8,6 +8,7 @@ import {
   Text,
   TouchableOpacity,
   Platform,
+  Image,
 } from 'react-native';
 import {
   NavigationContainer,
@@ -16,7 +17,6 @@ import {
 } from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import Home from './src/Screens/Home';
 import Login from './src/Screens/Login';
 import Routes from './src/Screens/Routes';
 import {UserContext} from './UserContext';
@@ -29,7 +29,7 @@ import Signup from './src/Screens/Signup';
 import Settings from './src/Screens/Settings';
 import Ionicon from 'react-native-vector-icons/Ionicons';
 
-//use popups to tell users they arent logged in or whatever
+//come on
 function App() {
   const [jwt, setJwt] = useState();
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -54,7 +54,6 @@ function App() {
     } else {
       try {
         const token = await EncryptedStorage.getItem(STORE_KEY);
-        console.log('STORED VAL: ', token);
         if (token || token !== '') {
           setJwt(token);
         } else {
@@ -80,7 +79,6 @@ function App() {
       );
     } else {
       try {
-        console.log('STORING: ', token);
         await EncryptedStorage.setItem(STORE_KEY, token);
         setJwt(token);
       } catch (error) {
@@ -92,6 +90,7 @@ function App() {
   const handleLogout = async () => {
     try {
       await EncryptedStorage.removeItem(STORE_KEY);
+      setJwt('');
     } catch (error) {
       console.log('User not logged in');
     }
@@ -111,7 +110,6 @@ function App() {
       })
         .then(res => res.json())
         .then(async data => {
-          console.log('IS AUTH: ', data);
           if (data.status === 200) {
             setIsAuthorized(true);
           } else {
@@ -145,20 +143,39 @@ function App() {
       <RouteStack.Navigator>
         <RouteStack.Screen
           name="Routes"
-          component={Routes}
+          children={({navigation, route}) => (
+            <Routes
+              isAuthorized={isAuthorized}
+              navigation={navigation}
+              route={route}
+            />
+          )}
           options={{
             headerStyle: {
               shadowColor: 'transparent', // this covers iOS
               elevation: 0, // this covers Android
             },
+            headerTitle: () => (
+              <Image
+                source={require('./src/Assets/ek_logo_trim.jpg')}
+                style={{width: 80, height: 30}}
+              />
+            ),
+            headerTitleAlign: 'center',
           }}
         />
         <RouteStack.Screen
           name="RouteDetails"
           component={RouteDetails}
           options={{
-            headerTitle: '',
+            headerTitle: () => (
+              <Image
+                source={require('./src/Assets/ek_logo_trim.jpg')}
+                style={{width: 80, height: 30}}
+              />
+            ),
             headerBackTitle: ' ',
+            headerTitleAlign: 'center',
             headerBackImage: () => (
               <Ionicon name="chevron-back-outline" size={35} color="black" />
             ),
@@ -172,8 +189,14 @@ function App() {
           name="CreateRoute"
           component={CreateRoute}
           options={{
-            headerTitle: '',
+            headerTitle: () => (
+              <Image
+                source={require('./src/Assets/ek_logo_trim.jpg')}
+                style={{width: 80, height: 30}}
+              />
+            ),
             headerBackTitle: ' ',
+            headerTitleAlign: 'center',
             headerBackImage: () => (
               <Ionicon name="chevron-back-outline" size={35} color="black" />
             ),
@@ -228,7 +251,12 @@ function App() {
           name="Settings"
           component={Settings}
           options={{
-            headerTitle: 'Settings',
+            headerTitle: () => (
+              <Image
+                source={require('./src/Assets/ek_logo_trim.jpg')}
+                style={{width: 80, height: 30}}
+              />
+            ),
             headerTitleAlign: 'center',
             cardStyle: {backgroundColor: 'white'},
             gestureDirection: 'horizontal',
@@ -254,7 +282,7 @@ function App() {
         value={[jwt, setJwt, handleStoreToken, handleFetchToken]}>
         <NavigationContainer>
           <Tab.Navigator
-            initialRouteName={'Routes'}
+            initialRouteName={'Login'}
             screenOptions={({route}) => ({
               tabBarIcon: ({focused, color, size}) => {
                 let iconName;
@@ -277,7 +305,7 @@ function App() {
                         color={color}
                       />
                     );
-                  case 'Logout':
+                  case 'Login':
                     return (
                       <Ionicon
                         name={'log-out-outline'}
@@ -287,122 +315,57 @@ function App() {
                     );
                 }
               },
-              tabBarActiveTintColor: '#90EE90',
+              tabBarActiveTintColor: 'pink',
               tabBarInactiveTintColor: 'gray',
               tabBarLabelStyle: {
                 paddingBottom: 10,
                 fontSize: 10,
                 position: 'absolute',
               },
-              tabBarStyle: {padding: 10, height: 70},
+              tabBarStyle: {
+                padding: Platform.OS === 'android' ? 0 : 10,
+                height: 70,
+              },
               tabBarHideOnKeyboard: true,
               headerShown: false,
-              tabBarLabel: '',
+              tabBarLabel: Platform.OS === 'ios' ? '' : route.name,
             })}>
             <Tab.Screen
-              name="Logout"
+              name="Login"
               component={AuthStackScreens}
               options={{tabBarStyle: {display: 'none'}}}
+              listeners={{
+                tabPress: e => {
+                  fetch(`${DEV_URL}/api/v1/routes/deactivate/current`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                      Authorization: jwt,
+                      'User-Agent': 'any-name',
+                    },
+                    mode: 'cors',
+                  })
+                    .then(res => res.json())
+                    .then(async data => {
+                      console.log('RES: ', data);
+                    })
+                    .catch(error => {
+                      console.log(
+                        'Unable to deactivate route with ERROR:',
+                        error,
+                      );
+                    });
+                  console.log('Logging out...');
+                  setIsAuthorized(false);
+                  handleStoreToken('');
+                },
+              }}
             />
             <Tab.Screen name="Routes" component={RouteStackScreens} />
             <Tab.Screen name="Settings" component={SettingsStackScreens} />
           </Tab.Navigator>
-          {/* <Stack.Navigator screenOptions={{gestureDirection: 'horizontal'}}>
-          {!isAuthorized && (
-            <Stack.Screen
-              name="Login"
-              component={Login}
-              options={{
-                headerTitle: '',
-                cardStyle: {
-                  backgroundColor: 'white',
-                  gestureDirection: 'horizontal',
-                  transitionSpec: {
-                    open: config,
-                    close: config,
-                  },
-                },
-              }}
-            />
-          )}
-          <Stack.Screen
-            name="Home"
-            component={Home}
-            options={{headerTitle: ''}}
-          />
-          <Stack.Screen
-            name="Routes"
-            component={Routes}
-            options={{
-              headerTitle: 'Your routes',
-              headerLeft: '',
-              headerTitleAlign: 'center',
-              cardStyle: {backgroundColor: 'white'},
-              gestureDirection: 'horizontal',
-              transitionSpec: {
-                open: config,
-                close: config,
-              },
-            }}
-          />
-          <Stack.Screen
-            name="RouteDetails"
-            component={RouteDetails}
-            options={{
-              headerTitle: 'Route details',
-              headerTitleAlign: 'center',
-              cardStyle: {backgroundColor: 'white'},
-              gestureDirection: 'horizontal',
-              transitionSpec: {
-                open: config,
-                close: config,
-              },
-            }}
-          />
-          <Stack.Screen
-            name="CreateRoute"
-            component={CreateRoute}
-            options={{
-              headerTitle: 'Create a route',
-              headerTitleAlign: 'center',
-              cardStyle: {backgroundColor: 'white'},
-              gestureDirection: 'horizontal',
-              transitionSpec: {
-                open: config,
-                close: config,
-              },
-            }}
-          />
-          <Stack.Screen
-            name="Signup"
-            component={Signup}
-            options={{
-              headerTitle: '',
-              cardStyle: {
-                backgroundColor: 'white',
-                gestureDirection: 'horizontal',
-                transitionSpec: {
-                  open: config,
-                  close: config,
-                },
-              },
-            }}
-          />
-          <Stack.Screen
-            name="Settings"
-            component={Settings}
-            options={{
-              headerTitle: 'Settings',
-              headerTitleAlign: 'center',
-              cardStyle: {backgroundColor: 'white'},
-              gestureDirection: 'horizontal',
-              transitionSpec: {
-                open: config,
-                close: config,
-              },
-            }}
-          />
-        </Stack.Navigator> */}
         </NavigationContainer>
       </UserContext.Provider>
     </SafeAreaProvider>

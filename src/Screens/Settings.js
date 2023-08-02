@@ -10,12 +10,11 @@ import {
 import {TextInput, TouchableOpacity} from 'react-native-gesture-handler';
 import {UserContext} from '../../UserContext';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
-import {useNavigation} from '@react-navigation/native';
 import {v4 as uuid} from 'uuid';
 
 const {width, height} = Dimensions.get('screen');
 
-const Settings = () => {
+const Settings = ({navigation}) => {
   const [jwt, setJwt, handleStoreToken, handleFetchToken] =
     useContext(UserContext);
   const [firstName, setFirstName] = useState('');
@@ -23,7 +22,6 @@ const Settings = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const nav = useNavigation();
 
   useEffect(() => {
     setLoading(true);
@@ -44,12 +42,12 @@ const Settings = () => {
           setLastName(data.user.lastName);
           setLoading(false);
         } else {
-          nav.navigate('Login');
+          navigation.navigate('Login');
         }
       })
       .catch(error => {
         console.log('error fetching settings:', error);
-        nav.navigate('Login');
+        navigation.navigate('Login');
       });
   }, [jwt]);
 
@@ -73,7 +71,7 @@ const Settings = () => {
       .then(async data => {
         if (data.status === 204) {
           console.log(data);
-          nav.navigate('Routes', {update: uuid()});
+          navigation.navigate('Routes', {update: uuid()});
         } else {
           setError(data.body.message[0]);
           console.log('Unable to update profile: ', data);
@@ -102,7 +100,7 @@ const Settings = () => {
       .then(async data => {
         if (data.status === 204) {
           console.log(data);
-          nav.navigate('Login', {update: uuid()});
+          navigation.navigate('Login', {update: uuid()});
         } else {
           setError(data.body.message[0]);
           console.log('Unable to delete account: ', data);
@@ -145,9 +143,15 @@ const Settings = () => {
               <Text style={styles.buttonTextStyles}>Save</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={{...styles.buttonStyles, backgroundColor: 'red'}}
+              style={{
+                ...styles.buttonStyles,
+                backgroundColor: 'black',
+                borderColor: 'black',
+              }}
               onPress={handleDeleteAccount}>
-              <Text style={styles.buttonTextStyles}>Delete account</Text>
+              <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+                Delete account
+              </Text>
             </TouchableOpacity>
           </View>
           {error && <Text style={styles.errorStyle}>{error}</Text>}
@@ -183,16 +187,18 @@ const styles = StyleSheet.create({
   buttonTextStyles: {
     fontSize: 20,
     fontWeight: '500',
-    color: 'white',
+    color: '#de3623',
   },
   buttonStyles: {
     paddingHorizontal: 10,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#1bab05',
+    backgroundColor: 'pink',
     width: width - 40,
     justifyContent: 'center',
     alignItems: 'center',
+    borderColor: '#de3623',
+    borderWidth: 1,
   },
   inputsStyles: {
     backgroundColor: 'white',

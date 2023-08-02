@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import {View, Text, StyleSheet, Dimensions, Animated} from 'react-native';
 import {TouchableOpacity} from 'react-native-gesture-handler';
+import Ionicon from 'react-native-vector-icons/Ionicons';
 
 const {width, height} = Dimensions.get('screen');
 
@@ -10,6 +11,7 @@ const Popup = ({
   prompt,
   handleRouteOverride,
   closePopup,
+  subtext,
 }) => {
   if (prompt)
     return (
@@ -23,7 +25,7 @@ const Popup = ({
             {children}
           </Text>
           {prompt && (
-            <View style={{gap: 10}}>
+            <View style={{gap: 10, flexDirection: 'row'}}>
               <TouchableOpacity
                 style={{...styles.buttonStyles}}
                 onPress={handleRouteOverride}>
@@ -47,24 +49,37 @@ const Popup = ({
           backgroundColor: background,
           position: 'absolute',
           top: 10,
-          left: 50,
+          left: 20,
         }}>
-        <Text style={{...styles.text, color: prompt ? 'black' : 'white'}}>
-          {children}
-        </Text>
-        {prompt && (
-          <View style={{gap: 10}}>
-            <TouchableOpacity
-              style={{...styles.buttonStyles}}
-              onPress={handleRouteOverride}>
-              <Text style={styles.buttonTextStyles}>Override</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{...styles.buttonStyles, backgroundColor: 'black'}}
-              onPress={closePopup}>
-              <Text style={styles.buttonTextStyles}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+        <View
+          style={{
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+            gap: 10,
+          }}>
+          <Text style={{...styles.text, color: prompt ? 'black' : 'white'}}>
+            {children}
+          </Text>
+          <Ionicon
+            name={
+              background === '#1e90ff'
+                ? 'checkmark-circle-outline'
+                : 'alert-circle-outline'
+            }
+            size={30}
+            color={'white'}
+          />
+        </View>
+        {subtext && (
+          <Text
+            style={{
+              ...styles.text,
+              fontSize: 16,
+              color: prompt ? 'black' : 'white',
+            }}>
+            {subtext}
+          </Text>
         )}
       </View>
     );
@@ -82,17 +97,16 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   content: {
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    width: width - 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'column',
+    width: width - 40,
     borderRadius: 20,
-    borderColor: 'gainsboro',
-    borderWidth: 2,
     padding: 20,
     elevation: 5,
     fontSize: 20,
     color: 'white',
-    gap: 20,
+    gap: 10,
   },
   text: {
     textAlign: 'center',
@@ -103,6 +117,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '500',
     color: 'white',
+    width: 100,
+    textAlign: 'center',
   },
   buttonStyles: {
     paddingHorizontal: 10,

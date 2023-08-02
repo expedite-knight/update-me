@@ -12,22 +12,22 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
 import {UserContext} from '../../UserContext';
-import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import {TextInput} from 'react-native-gesture-handler';
 
 const {width, height} = Dimensions.get('screen');
 
+//reload
 const Login = ({navigation}) => {
-  const nav = useNavigation();
   const [jwt, setJwt, handleStoreToken] = useContext(UserContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   function handleLogin() {
+    setLoading(true);
     fetch(`${DEV_URL}/api/v1/auth/login`, {
       method: 'POST',
       headers: {
@@ -45,12 +45,13 @@ const Login = ({navigation}) => {
           await handleStoreToken(data.body.jwtToken);
           setJwt(data.body.jwtToken);
           setError('');
-          nav.navigate('Routes');
+          navigation.navigate('Routes');
         } else {
           setError('Incorrect email or password');
         }
       })
       .catch(error => {
+        setLoading(false);
         console.log('error logging in:', error[0]);
         setError('Something went wrong, try again later.');
       });
@@ -58,7 +59,10 @@ const Login = ({navigation}) => {
 
   return (
     <SafeAreaView style={styles.containerStyle}>
-      <Text style={styles.headerTextStyles}>UpdateMe</Text>
+      <Image
+        source={require('../Assets/EK_logo.png')}
+        style={{width: 300, height: 150}}
+      />
       <View style={styles.contentStyles}>
         <View style={{gap: 20}}>
           <TextInput
@@ -80,9 +84,15 @@ const Login = ({navigation}) => {
             <Text style={styles.buttonTextStyles}>Login</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={{...styles.buttonStyles, backgroundColor: 'black'}}
+            style={{
+              ...styles.buttonStyles,
+              backgroundColor: 'black',
+              borderColor: 'black',
+            }}
             onPress={() => navigation.push('Signup')}>
-            <Text style={styles.buttonTextStyles}>Sign up</Text>
+            <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+              Sign up
+            </Text>
           </TouchableOpacity>
         </View>
         {error.trim() !== '' && <Text style={styles.errorStyle}>{error}</Text>}
@@ -96,12 +106,11 @@ const styles = StyleSheet.create({
     height: height,
     alignItems: 'center',
     backgroundColor: 'white',
-    gap: 20,
+    gap: 50,
   },
   contentStyles: {
     flex: 1,
     alignItems: 'center',
-    marginTop: 100,
     gap: 50,
   },
   headerTextStyles: {
@@ -112,16 +121,18 @@ const styles = StyleSheet.create({
   buttonTextStyles: {
     fontSize: 20,
     fontWeight: '500',
-    color: 'white',
+    color: '#de3623',
   },
   buttonStyles: {
     paddingHorizontal: 10,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#1bab05',
+    backgroundColor: 'pink',
     width: width - 40,
     justifyContent: 'center',
     alignItems: 'center',
+    borderColor: '#de3623',
+    borderWidth: 1,
   },
   inputsStyles: {
     height: 400,

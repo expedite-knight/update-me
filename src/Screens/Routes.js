@@ -13,7 +13,6 @@ import {
 import {UserContext} from '../../UserContext';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import RouteCard from '../Components/RouteCard';
-import {useNavigation} from '@react-navigation/native';
 import {TouchableOpacity} from 'react-native-gesture-handler';
 import BackgroundService from 'react-native-background-actions';
 import Geolocation from 'react-native-geolocation-service';
@@ -22,16 +21,17 @@ import 'react-native-get-random-values';
 import uuid from 'react-uuid';
 import Popup from '../Components/Popup';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {PERMISSIONS, request} from 'react-native-permissions';
+import {
+  PERMISSIONS,
+  request,
+  check,
+  openSettings,
+} from 'react-native-permissions';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const {width, height} = Dimensions.get('screen');
 
-//also alert the user if a number has not been verified yet
-//maybe use the verified numbers object when showing subscribers
-//and not just a string, that way it will be easy to tell if a number has
-//been verified yet or not and display that on the app/frontend
-const Routes = ({route, navigation}) => {
-  const nav = useNavigation();
+const Routes = ({route, navigation, isAuthorized}) => {
   const [jwt, setJwt, handleStoreToken] = useContext(UserContext);
   const [routes, setRoutes] = useState([]);
   const [update, setUpdate] = useState(route?.params?.update);
@@ -67,12 +67,35 @@ const Routes = ({route, navigation}) => {
   useEffect(() => {
     if (!jwt) {
       console.log('User not logged in.');
-      // nav.navigate('Login');
+      handleStopTask();
+      navigation ? navigation.navigate('Login') : null;
     } else {
       if (!BackgroundService.isRunning()) handleStartTask();
     }
     setUpdate(route?.params?.update);
-  }, [route.params]);
+
+    if (route?.params?.createdRoute === 'success') {
+      openPopup('Route created successfully', '#1e90ff');
+      route.params = {};
+      setTimeout(() => {
+        closePopup();
+      }, 3000);
+    }
+    if (route?.params?.updatedRoute === 'success') {
+      openPopup('Route updated successfully', '#1e90ff');
+      route.params = {};
+      setTimeout(() => {
+        closePopup();
+      }, 3000);
+    }
+    if (route?.params?.deletedRoute === 'success') {
+      openPopup('Route deleted successfully', '#1e90ff');
+      route.params = {};
+      setTimeout(() => {
+        closePopup();
+      }, 3000);
+    }
+  }, [route?.params]);
 
   //---------put this in a custom hook? OR its own module---------
   const sleep = time =>
@@ -163,9 +186,88 @@ const Routes = ({route, navigation}) => {
         console.log(err);
       }
     } else {
-      request(PERMISSIONS.IOS.CONTACTS).then(result => {
-        console.log(result);
-      });
+      try {
+        const frontPerm = await request(
+          PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+        ).then(result => {
+          if (result === 'blocked') {
+            openSettings().catch(err => console.log('Unable to open settings'));
+          } else {
+            return result;
+          }
+        });
+        const backPerm = await request(PERMISSIONS.IOS.LOCATION_ALWAYS).then(
+          result => {
+            if (result === 'blocked') {
+              openSettings().catch(err =>
+                console.log('Unable to open settings'),
+              );
+            } else {
+              return result;
+            }
+          },
+        );
+        if (backPerm === 'granted' && frontPerm == 'granted') {
+          console.log('You can use Geolocation');
+          const {delay} = taskDataArguments;
+          await new Promise(async resolve => {
+            for (let i = 0; BackgroundService.isRunning(); i++) {
+              Geolocation.getCurrentPosition(
+                position => {
+                  const date = new Date(position.timestamp);
+                  fetch(`${DEV_URL}/api/v1/users/location/update`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                      Authorization: jwt,
+                      'User-Agent': 'any-name',
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify({
+                      lat: position.coords.latitude,
+                      long: position.coords.longitude,
+                      offset: new Date().getTimezoneOffset() / 60,
+                    }),
+                  })
+                    .then(res => res.json())
+                    .then(async data => {
+                      if (data.status === 204) {
+                        console.log(
+                          'Location updated at: ',
+                          moment(date).format('LTS'),
+                        );
+                      } else if (data.status === 403) {
+                        console.log('User has logged out...');
+                        handleLogout();
+                      } else if (data.status === 200) {
+                        setUpdate(uuid());
+                      }
+                    })
+                    .catch(error => {
+                      console.log(
+                        'Unable to update location with ERROR:',
+                        error,
+                      );
+                    });
+                },
+                error => {
+                  console.log(error.code, error.message);
+                },
+                {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+              );
+
+              await sleep(delay);
+            }
+          });
+        } else {
+          console.log('You cannot use Geolocation');
+        }
+      } catch (err) {
+        console.log('ERR sending location: ', err);
+      }
+      //now send the users location to the server by starting the task
     }
   };
 
@@ -184,6 +286,8 @@ const Routes = ({route, navigation}) => {
     },
   };
 
+  //for some reason this func is getting called a few times on render(sometimes)
+  //fix it by adding async await to the functions that start and stop it
   const handleStartTask = async () => {
     console.log('Tracking location...');
     if (BackgroundService.isRunning()) {
@@ -202,7 +306,7 @@ const Routes = ({route, navigation}) => {
   async function handleLogout() {
     handleStoreToken('');
     await handleStopTask();
-    nav.navigate('Login');
+    navigation.navigate('Login');
   }
 
   async function handleRouteOverride() {
@@ -283,14 +387,15 @@ const Routes = ({route, navigation}) => {
               data.body.message,
             );
             handleStoreToken('');
-            // nav.navigate('Login');
+            navigation.navigate('Login');
           }
         })
         .catch(error => {
           console.log('error getting routes:', error);
         });
     } else {
-      // nav.navigate('Login');
+      handleStopTask();
+      navigation ? navigation.navigate('Login') : null;
     }
   }, [jwt, update]);
 
@@ -312,11 +417,6 @@ const Routes = ({route, navigation}) => {
       <ScrollView
         contentContainerStyle={styles.containerStyle}
         scrollEnabled={true}>
-        <TouchableOpacity
-          style={styles.mainButton}
-          onPress={() => navigation.push('CreateRoute')}>
-          <Text style={styles.buttonTextStyles}>Create Route</Text>
-        </TouchableOpacity>
         {loading ? (
           <View style={styles.containerStyle}>
             <ActivityIndicator size="small" color="black" />
@@ -337,12 +437,25 @@ const Routes = ({route, navigation}) => {
                   toggleUpdate={uuid => setUpdate(uuid)}
                   openPopup={openPopup}
                   closePopup={closePopup}
+                  destination={route.destination}
                 />
               );
             })}
           </View>
         )}
       </ScrollView>
+      <View
+        style={{
+          justifyContent: 'center',
+          alignItems: 'flex-end',
+          padding: 20,
+        }}>
+        <TouchableOpacity
+          style={styles.mainButton}
+          onPress={() => navigation.navigate('CreateRoute')}>
+          <Text style={{color: 'white', fontSize: 30}}>+</Text>
+        </TouchableOpacity>
+      </View>
     </>
   );
 };
@@ -357,11 +470,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   contentStyles: {
-    flex: 1,
     display: 'flex',
     overflow: 'visible',
     alignItems: 'center',
-    gap: 10,
   },
   headerTextStyles: {
     fontSize: 30,
@@ -379,15 +490,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgb(120,150, 250)',
   },
   mainButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#1bab05',
-    borderRadius: 20,
+    backgroundColor: '#1e90ff',
+    borderRadius: 50,
     height: 65,
-    width: width - 40,
-    overflow: 'visible',
+    width: 65,
+    elevation: 5,
+    shadowColor: 'gainsboro',
+    shadowRadius: 10,
+    shadowOpacity: 100,
   },
 });
 
