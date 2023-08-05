@@ -29,11 +29,9 @@ import Signup from './src/Screens/Signup';
 import Settings from './src/Screens/Settings';
 import Ionicon from 'react-native-vector-icons/Ionicons';
 
-//come on
 function App() {
   const [jwt, setJwt] = useState();
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [loading, setLoading] = useState(true);
   const navTheme = DefaultTheme;
   navTheme.colors.background = 'white';
 
@@ -99,7 +97,7 @@ function App() {
   useEffect(() => {
     const handleAuth = async () => {
       await handleFetchToken();
-      fetch(`${DEV_URL}/api/v1/auth/verify`, {
+      fetch(`${APP_URL}/api/v1/auth/verify`, {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
@@ -174,7 +172,7 @@ function App() {
                 style={{width: 80, height: 30}}
               />
             ),
-            headerBackTitle: ' ',
+            headerBackTitle: '',
             headerTitleAlign: 'center',
             headerBackImage: () => (
               <Ionicon name="chevron-back-outline" size={35} color="black" />
@@ -195,7 +193,7 @@ function App() {
                 style={{width: 80, height: 30}}
               />
             ),
-            headerBackTitle: ' ',
+            headerBackTitle: '',
             headerTitleAlign: 'center',
             headerBackImage: () => (
               <Ionicon name="chevron-back-outline" size={35} color="black" />
@@ -203,6 +201,7 @@ function App() {
             headerStyle: {
               shadowColor: 'transparent', // this covers iOS
               elevation: 0, // this covers Android
+              backgroundColor: 'white',
             },
           }}
         />
@@ -336,7 +335,7 @@ function App() {
               options={{tabBarStyle: {display: 'none'}}}
               listeners={{
                 tabPress: e => {
-                  fetch(`${DEV_URL}/api/v1/routes/deactivate/current`, {
+                  fetch(`${APP_URL}/api/v1/routes/deactivate/current`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -371,12 +370,5 @@ function App() {
     </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  textStyles: {
-    fontSize: 20,
-    fontWeight: '500',
-  },
-});
 
 export default App;

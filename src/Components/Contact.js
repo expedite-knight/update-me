@@ -10,8 +10,10 @@ import Icon from 'react-native-vector-icons/Ionicons';
 
 const {width, height} = Dimensions.get('screen');
 
-const Contact = ({contact, removeFromSelected, addToSelected, isSelected}) => {
+//contacts update properly now but its so slow, maybe fix it later
+const Contact = ({contact, removeFromSelected, addToSelected, state}) => {
   const [number, setNumber] = useState('');
+  const [selected, setSelected] = useState();
 
   useEffect(() => {
     let temp = contact.phoneNumbers[0].number;
@@ -20,13 +22,22 @@ const Contact = ({contact, removeFromSelected, addToSelected, isSelected}) => {
     temp = temp.replaceAll('-', '');
     temp = temp.replaceAll(' ', '');
     setNumber(temp);
-  }, [contact]);
+  }, []);
+
+  useEffect(() => {
+    setSelected(prev => !state);
+  }, [state]);
 
   return (
     <TouchableOpacity
       onPress={e => {
         e.preventDefault();
-        isSelected ? removeFromSelected(number) : addToSelected(number);
+        if (selected) {
+          removeFromSelected(number);
+        } else {
+          addToSelected(number);
+        }
+        setSelected(prev => !prev);
       }}
       style={styles.contact}>
       <Text
@@ -37,7 +48,7 @@ const Contact = ({contact, removeFromSelected, addToSelected, isSelected}) => {
           ? `${contact.givenName} ${contact.familyName}`
           : number}
       </Text>
-      {isSelected && (
+      {selected && (
         <Icon name="checkmark-circle-outline" size={25} color="#1bab05" />
       )}
     </TouchableOpacity>

@@ -6,8 +6,14 @@ import {
   Dimensions,
   ActivityIndicator,
   SafeAreaView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
-import {TextInput, TouchableOpacity} from 'react-native-gesture-handler';
+import {
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native-gesture-handler';
 import {UserContext} from '../../UserContext';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import {v4 as uuid} from 'uuid';
@@ -25,7 +31,7 @@ const Settings = ({navigation}) => {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${DEV_URL}/api/v1/users/details`, {
+    fetch(`${APP_URL}/api/v1/users/details`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -52,7 +58,7 @@ const Settings = ({navigation}) => {
   }, [jwt]);
 
   const handleUpdateProfile = () => {
-    fetch(`${DEV_URL}/api/v1/auth/update`, {
+    fetch(`${APP_URL}/api/v1/auth/update`, {
       method: 'PUT',
       headers: {
         Accept: 'application/json',
@@ -86,7 +92,7 @@ const Settings = ({navigation}) => {
   };
 
   const handleDeleteAccount = () => {
-    fetch(`${DEV_URL}/api/v1/auth/delete`, {
+    fetch(`${APP_URL}/api/v1/auth/delete`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -114,51 +120,56 @@ const Settings = ({navigation}) => {
   return (
     <>
       {!loading ? (
-        <SafeAreaView style={styles.containerStyle}>
-          <View style={styles.inputsStyles}>
-            <TextInput
-              placeholder="First name"
-              style={styles.inputStyles}
-              value={firstName}
-              onChangeText={e => setFirstName(e.valueOf())}
-            />
-            <TextInput
-              placeholder="Last name"
-              style={styles.inputStyles}
-              value={lastName}
-              onChangeText={e => setLastName(e.valueOf())}
-            />
-            <TextInput
-              placeholder="New password"
-              style={styles.inputStyles}
-              secureTextEntry={true}
-              value={password}
-              onChangeText={e => setPassword(e.valueOf())}
-            />
-          </View>
-          <View style={{gap: 10}}>
-            <TouchableOpacity
-              style={styles.buttonStyles}
-              onPress={handleUpdateProfile}>
-              <Text style={styles.buttonTextStyles}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                ...styles.buttonStyles,
-                backgroundColor: 'black',
-                borderColor: 'black',
-              }}
-              onPress={handleDeleteAccount}>
-              <Text style={{...styles.buttonTextStyles, color: 'white'}}>
-                Delete account
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {error && <Text style={styles.errorStyle}>{error}</Text>}
-        </SafeAreaView>
+        <ScrollView automaticallyAdjustKeyboardInsets={true}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <SafeAreaView style={styles.containerStyle}>
+              <Text style={styles.headerTextStyles}>Settings</Text>
+              <View style={styles.inputsStyles}>
+                <TextInput
+                  placeholder="First name"
+                  style={styles.inputStyles}
+                  value={firstName}
+                  onChangeText={e => setFirstName(e.valueOf())}
+                />
+                <TextInput
+                  placeholder="Last name"
+                  style={styles.inputStyles}
+                  value={lastName}
+                  onChangeText={e => setLastName(e.valueOf())}
+                />
+                <TextInput
+                  placeholder="New password"
+                  style={styles.inputStyles}
+                  secureTextEntry={true}
+                  value={password}
+                  onChangeText={e => setPassword(e.valueOf())}
+                />
+              </View>
+              <View style={{gap: 10, marginHorizontal: 20, marginTop: 50}}>
+                <TouchableOpacity
+                  style={styles.buttonStyles}
+                  onPress={handleUpdateProfile}>
+                  <Text style={styles.buttonTextStyles}>Save</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    ...styles.buttonStyles,
+                    backgroundColor: 'black',
+                    borderColor: 'black',
+                  }}
+                  onPress={handleDeleteAccount}>
+                  <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+                    Delete account
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {error && <Text style={styles.errorStyle}>{error}</Text>}
+            </SafeAreaView>
+          </TouchableWithoutFeedback>
+        </ScrollView>
       ) : (
         <View style={styles.containerStyle}>
-          <ActivityIndicator size="small" color="#0000ff" />
+          <ActivityIndicator size="small" color="black" />
         </View>
       )}
     </>
@@ -167,22 +178,15 @@ const Settings = ({navigation}) => {
 
 const styles = StyleSheet.create({
   containerStyle: {
-    height: height,
-    alignItems: 'center',
-    backgroundColor: 'white',
-    gap: 50,
-    padding: 20,
-  },
-  contentStyles: {
     flex: 1,
-    alignItems: 'center',
-    marginTop: 100,
-    gap: 50,
   },
+  contentStyles: {},
   headerTextStyles: {
     fontSize: 30,
     fontWeight: '500',
     color: 'black',
+    textAlign: 'center',
+    marginTop: 50,
   },
   buttonTextStyles: {
     fontSize: 20,
@@ -190,35 +194,26 @@ const styles = StyleSheet.create({
     color: '#de3623',
   },
   buttonStyles: {
-    paddingHorizontal: 10,
     paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: 'pink',
-    width: width - 40,
     justifyContent: 'center',
     alignItems: 'center',
     borderColor: '#de3623',
     borderWidth: 1,
   },
   inputsStyles: {
+    marginTop: 50,
     backgroundColor: 'white',
-    gap: 20,
-    width: width - 40,
+    marginHorizontal: 20,
+    gap: 10,
   },
   inputStyles: {
-    paddingHorizontal: 10,
     paddingVertical: 10,
     borderBottomColor: 'gainsboro',
     borderBottomWidth: 1,
     fontSize: 20,
     backgroundColor: 'white',
-  },
-  subscriber: {
-    fontSize: 20,
-    padding: 10,
-    flexDirection: 'row',
-    alignContent: 'center',
-    justifyContent: 'space-between',
   },
   deleteButton: {
     alignItems: 'center',

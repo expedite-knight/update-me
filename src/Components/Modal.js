@@ -7,6 +7,7 @@ import {
   Animated,
   Platform,
   Keyboard,
+  FlatList,
 } from 'react-native';
 import {
   ScrollView,
@@ -25,11 +26,13 @@ const Modal = ({
   background,
   closeModal,
   subscribers,
+  state,
 }) => {
   const [allContacts, setAllContacts] = useState(list);
   const [selectedContacts, setSelectedContacts] = useState([]);
   const [customNumber, setCustomNumber] = useState('');
   const [keyboardStatus, setKeyboardStatus] = useState(false);
+  const [listElements, setListElements] = useState();
 
   useEffect(() => {
     const keyboardShown = Keyboard.addListener('keyboardDidShow', () => {
@@ -56,7 +59,6 @@ const Modal = ({
   }
 
   function removeFromSelected(number) {
-    const index = selectedContacts.indexOf(JSON.parse(number));
     const res = selectedContacts.filter(item => item != number);
     setSelectedContacts(res);
   }
@@ -64,7 +66,7 @@ const Modal = ({
   function addCustomNumberToContacts() {
     //removing the repeat number and adding the new one
     const alreadyAdded = allContacts.filter(
-      contact => contact.phoneNumbers[0].number === customNumber,
+      contact => contact?.phoneNumbers[0]?.number === customNumber,
     );
 
     if (
@@ -82,61 +84,56 @@ const Modal = ({
     }
   }
 
-  const listElements = allContacts.map((contact, index) => {
-    let isSelected = false;
-    let temp = contact.phoneNumbers[0].number;
-    temp = temp.replaceAll('(', '');
-    temp = temp.replaceAll(')', '');
-    temp = temp.replaceAll('-', '');
-    temp = temp.replaceAll(' ', '');
-    temp = temp.replaceAll('+', '');
+  useEffect(() => {
+    setListElements(() => {
+      return allContacts
+        .filter(
+          contact =>
+            contact.phoneNumbers.length > 0 &&
+            contact.phoneNumbers[0].number.length > 6,
+        )
+        .map((contact, index) => {
+          let temp = contact.phoneNumbers[0].number;
+          temp = temp.replaceAll('(', '');
+          temp = temp.replaceAll(')', '');
+          temp = temp.replaceAll('-', '');
+          temp = temp.replaceAll(' ', '');
+          temp = temp.replaceAll('+', '');
+          temp = temp.replace(/[^\d.-]+/g, '');
 
-    const alreadyAdded = subscribers.filter(
-      sub => sub.number == '+1'.concat(temp),
-    );
+          if (temp.length > 10) temp = temp.substring(1);
 
-    if (
-      selectedContacts.indexOf(JSON.parse(temp)) != -1 ||
-      alreadyAdded.length > 0
-    ) {
-      isSelected = true;
-    } else {
-      isSelected = false;
-    }
-    return (
-      <Contact
-        contact={contact}
-        addToSelected={addToSelected}
-        removeFromSelected={removeFromSelected}
-        isSelected={isSelected}
-        key={index}
-      />
-    );
-  });
+          return (
+            <Contact
+              contact={contact}
+              addToSelected={addToSelected}
+              removeFromSelected={removeFromSelected}
+              key={index}
+              state={state}
+            />
+          );
+        });
+    });
+  }, [subscribers, state]);
 
   useEffect(() => {
     setAllContacts(list);
   }, [list]);
 
   return (
-    <View
-      style={{
-        ...styles.container,
-      }}>
+    <View style={styles.container}>
       <View
         style={{
           ...styles.content,
           backgroundColor: background,
-          height: keyboardStatus ? 420 : height - 230,
         }}>
         {list <= 0 && <Text>Contacts not available</Text>}
         <ScrollView>{listElements}</ScrollView>
         <View
           style={{
-            width: width - 100,
-            gap: 10,
             flexDirection: 'row',
             alignItems: 'center',
+            marginTop: 20,
           }}>
           <Text style={{...styles.text, color: 'black'}}>+1</Text>
           <TextInput
@@ -178,9 +175,10 @@ const Modal = ({
             width: width - 100,
             height: 50,
             justifyContent: 'space-between',
+            marginTop: 20,
           }}>
           <TouchableOpacity
-            style={{...styles.buttonStyles}}
+            style={styles.buttonStyles}
             onPress={() => {
               setSelectedContacts([]);
               onClick(selectedContacts);
@@ -204,66 +202,25 @@ const Modal = ({
   );
 };
 
-{
-  /* <View
-                style={{
-                  flexDirection: 'row',
-                  width: width - 40,
-                  gap: 10,
-                }}>
-                <TextInput
-                  style={{...styles.inputStyles, flex: 1}}
-                  placeholder="Subscriber"
-                  value={subscriber}
-                  onChangeText={e => setSubscriber(e.valueOf())}
-                />
-                <TouchableOpacity
-                  style={{
-                    ...styles.buttonStyles,
-                    backgroundColor:
-                      subscriber.length >= 10
-                        ? subscribers.length >= 5
-                          ? 'rgba(0, 0, 0, .2)'
-                          : 'black'
-                        : 'rgba(0, 0, 0, .2)',
-                  }}
-                  onPress={handleAddSubscriber}
-                  disabled={
-                    subscriber.length >= 10
-                      ? subscribers.length >= 5
-                        ? true
-                        : false
-                      : true
-                  }>
-                  <Text style={{...styles.buttonTextStyles}}>
-                    Add subscribers
-                  </Text>
-                </TouchableOpacity>
-              </View> */
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'absolute',
-    alignItems: 'center',
-    paddingVertical: 20,
-    zIndex: 1,
-    backgroundColor: 'rgba(0, 0, 0, .2)',
     width: width,
-    height: Platform === 'ios' ? height - 160 : height - 190,
-    overflow: 'visible',
+    height: height,
+    backgroundColor: 'rgba(0,0,0, .2)',
   },
   content: {
+    flex: 1,
     alignItems: 'center',
     flexDirection: 'column',
-    width: width - 40,
     borderRadius: 20,
-    padding: 20,
     elevation: 2,
     fontSize: 20,
     color: 'white',
-    gap: 20,
+    margin: 20,
+    padding: 20,
+    maxHeight: height - 240,
   },
   header: {
     textAlign: 'center',
@@ -277,8 +234,6 @@ const styles = StyleSheet.create({
   },
   inputsStyles: {
     backgroundColor: 'white',
-    gap: 20,
-    width: width - 40,
   },
   inputStyles: {
     paddingHorizontal: 10,
@@ -289,7 +244,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   contact: {
-    width: width - 100,
     borderBottomColor: 'black',
     borderBottomWidth: 2,
     marginBottom: 10,
@@ -302,7 +256,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   buttonStyles: {
-    paddingHorizontal: 10,
+    flex: 1,
     paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: 'pink',
@@ -310,7 +264,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderColor: '#de3623',
     borderWidth: 1,
-    width: width - 260,
+    width: width - 240,
   },
 });
 

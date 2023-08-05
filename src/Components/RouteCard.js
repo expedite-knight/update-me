@@ -50,7 +50,8 @@ const RouteCard = props => {
   const sendActiveLocation = () => {
     Geolocation.getCurrentPosition(
       position => {
-        fetch(`${DEV_URL}/api/v1/routes/activate`, {
+        console.log('curr pos: ', position);
+        fetch(`${APP_URL}/api/v1/routes/activate`, {
           method: 'POST',
           credentials: 'include',
           headers: {
@@ -177,7 +178,7 @@ const RouteCard = props => {
   const sendDeactiveLocation = () => {
     Geolocation.getCurrentPosition(
       position => {
-        fetch(`${DEV_URL}/api/v1/routes/deactivate`, {
+        fetch(`${APP_URL}/api/v1/routes/deactivate`, {
           method: 'POST',
           credentials: 'include',
           headers: {
@@ -289,8 +290,7 @@ const RouteCard = props => {
   };
 
   function handleDeleteRoute() {
-    console.log('Deleting route...');
-    fetch(`${DEV_URL}/api/v1/routes/delete`, {
+    fetch(`${APP_URL}/api/v1/routes/delete`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -306,7 +306,6 @@ const RouteCard = props => {
     })
       .then(res => res.json())
       .then(data => {
-        console.log('Route deleted: ', data);
         if (data.status === 204) {
           props.toggleUpdate(uuid());
         } else {

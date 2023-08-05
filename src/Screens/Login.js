@@ -5,20 +5,30 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
   TouchableOpacity,
   Dimensions,
   Image,
   ActivityIndicator,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import {UserContext} from '../../UserContext';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import {TextInput} from 'react-native-gesture-handler';
+import {
+  PERMISSIONS,
+  request,
+  check,
+  openSettings,
+} from 'react-native-permissions';
+import Contacts from 'react-native-contacts';
+import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
+import EncryptedStorage from 'react-native-encrypted-storage';
 
 const {width, height} = Dimensions.get('screen');
 
-//reload
 const Login = ({navigation}) => {
   const [jwt, setJwt, handleStoreToken] = useContext(UserContext);
   const [email, setEmail] = useState('');
@@ -28,7 +38,7 @@ const Login = ({navigation}) => {
 
   function handleLogin() {
     setLoading(true);
-    fetch(`${DEV_URL}/api/v1/auth/login`, {
+    fetch(`${APP_URL}/api/v1/auth/login`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -45,9 +55,10 @@ const Login = ({navigation}) => {
           await handleStoreToken(data.body.jwtToken);
           setJwt(data.body.jwtToken);
           setError('');
-          navigation.navigate('Routes');
+          handleFetchAndStoreContacts();
         } else {
           setError('Incorrect email or password');
+          setLoading(false);
         }
       })
       .catch(error => {
@@ -57,60 +68,127 @@ const Login = ({navigation}) => {
       });
   }
 
+  function handleFetchAndStoreContacts() {
+    if (Platform.OS === 'ios') {
+      request(PERMISSIONS.IOS.CONTACTS).then(result => {
+        if (result === 'granted') {
+          Contacts.getAll()
+            .then(data => handleStoreContacts(data))
+            .catch(err => {
+              console.log('Unable to get contacts: ', err);
+              setLoading(false);
+            });
+        }
+      });
+    } else {
+      request(PERMISSIONS.ANDROID.READ_CONTACTS).then(result => {
+        if (result === 'granted') {
+          Contacts.getAll()
+            .then(data => handleStoreContacts(data))
+            .catch(err => {
+              console.log('Unable to get contacts: ', err);
+              setLoading(false);
+            });
+        }
+      });
+    }
+  }
+
+  function handleStoreContacts(contacts) {
+    if (RNSecureStorage) {
+      RNSecureStorage.set('contacts', JSON.stringify(contacts), {
+        accessible: ACCESSIBLE.WHEN_UNLOCKED,
+      }).then(
+        res => {
+          console.log('Stored contacts successfully');
+          navigation.navigate('Routes');
+        },
+        err => {
+          console.log('Err storing contacts: ', err);
+        },
+      );
+    } else {
+      try {
+        EncryptedStorage.setItem('contacts', JSON.stringify(contacts));
+        console.log('Stored contacts successfully');
+        navigation.navigate('Routes');
+      } catch (error) {
+        console.log('Err Storing contacts: ', error);
+      }
+    }
+  }
+
   return (
-    <SafeAreaView style={styles.containerStyle}>
-      <Image
-        source={require('../Assets/EK_logo.png')}
-        style={{width: 300, height: 150}}
-      />
-      <View style={styles.contentStyles}>
-        <View style={{gap: 20}}>
-          <TextInput
-            value={email}
-            placeholder="Email"
-            style={styles.inputStyles}
-            onChangeText={e => setEmail(e.valueOf())}
-          />
-          <TextInput
-            secureTextEntry={true}
-            value={password}
-            placeholder="Password"
-            style={styles.inputStyles}
-            onChangeText={e => setPassword(e.valueOf())}
-          />
+    <>
+      {!loading ? (
+        <ScrollView automaticallyAdjustKeyboardInsets={true}>
+          <SafeAreaView style={styles.containerStyle}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <>
+                <View style={{alignItems: 'center'}}>
+                  <Image
+                    source={require('../Assets/EK_logo.png')}
+                    style={{width: 300, height: 150}}
+                  />
+                </View>
+                <View style={styles.contentStyles}>
+                  <View style={styles.inputsStyles}>
+                    <TextInput
+                      value={email}
+                      placeholder="Email"
+                      style={styles.inputStyles}
+                      onChangeText={e => setEmail(e.valueOf())}
+                    />
+                    <TextInput
+                      secureTextEntry={true}
+                      value={password}
+                      placeholder="Password"
+                      style={styles.inputStyles}
+                      onChangeText={e => setPassword(e.valueOf())}
+                    />
+                  </View>
+                  <View style={styles.buttonsStyles}>
+                    <TouchableOpacity
+                      style={styles.buttonStyles}
+                      onPress={handleLogin}>
+                      <Text style={styles.buttonTextStyles}>Login</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={{
+                        ...styles.buttonStyles,
+                        backgroundColor: 'black',
+                        borderColor: 'black',
+                      }}
+                      onPress={() => navigation.push('Signup')}>
+                      <Text
+                        style={{...styles.buttonTextStyles, color: 'white'}}>
+                        Sign up
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {error.trim() !== '' && (
+                    <Text style={styles.errorStyle}>{error}</Text>
+                  )}
+                </View>
+              </>
+            </TouchableWithoutFeedback>
+          </SafeAreaView>
+        </ScrollView>
+      ) : (
+        <View style={styles.containerStyle}>
+          <ActivityIndicator size="small" color="black" />
         </View>
-        <View style={{gap: 20}}>
-          <TouchableOpacity style={styles.buttonStyles} onPress={handleLogin}>
-            <Text style={styles.buttonTextStyles}>Login</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              ...styles.buttonStyles,
-              backgroundColor: 'black',
-              borderColor: 'black',
-            }}
-            onPress={() => navigation.push('Signup')}>
-            <Text style={{...styles.buttonTextStyles, color: 'white'}}>
-              Sign up
-            </Text>
-          </TouchableOpacity>
-        </View>
-        {error.trim() !== '' && <Text style={styles.errorStyle}>{error}</Text>}
-      </View>
-    </SafeAreaView>
+      )}
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   containerStyle: {
-    height: height,
-    alignItems: 'center',
-    backgroundColor: 'white',
-    gap: 50,
+    flex: 1,
   },
   contentStyles: {
-    flex: 1,
-    alignItems: 'center',
+    padding: 20,
     gap: 50,
   },
   headerTextStyles: {
@@ -123,34 +201,31 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#de3623',
   },
+  buttonsStyles: {
+    backgroundColor: 'white',
+    gap: 10,
+  },
   buttonStyles: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: 'pink',
-    width: width - 40,
     justifyContent: 'center',
     alignItems: 'center',
     borderColor: '#de3623',
     borderWidth: 1,
+    paddingVertical: 5,
   },
   inputsStyles: {
-    height: 400,
     backgroundColor: 'white',
-    padding: 20,
-    gap: 20,
-    width: width - 40,
+    gap: 10,
   },
   inputStyles: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
     borderBottomColor: 'gainsboro',
     borderBottomWidth: 1,
-    fontSize: 20,
+    fontSize: 15,
     backgroundColor: 'white',
-    width: width - 40,
   },
   errorStyle: {
+    textAlign: 'center',
     color: 'red',
   },
 });

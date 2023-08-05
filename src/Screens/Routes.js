@@ -20,14 +20,12 @@ import moment from 'moment';
 import 'react-native-get-random-values';
 import uuid from 'react-uuid';
 import Popup from '../Components/Popup';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {
   PERMISSIONS,
   request,
   check,
   openSettings,
 } from 'react-native-permissions';
-import Icon from 'react-native-vector-icons/Ionicons';
 
 const {width, height} = Dimensions.get('screen');
 
@@ -41,7 +39,6 @@ const Routes = ({route, navigation, isAuthorized}) => {
   const [popupBackground, setPopupBackground] = useState('#1e90ff');
   const [isPopupPrompt, setIsPopupPrompt] = useState(false);
   const [overrideId, setOverrideId] = useState('');
-  const insets = useSafeAreaInsets();
 
   const openPopup = (text, background, prompt, routeId) => {
     setPopupText(text);
@@ -133,7 +130,7 @@ const Routes = ({route, navigation, isAuthorized}) => {
               Geolocation.getCurrentPosition(
                 position => {
                   const date = new Date(position.timestamp);
-                  fetch(`${DEV_URL}/api/v1/users/location/update`, {
+                  fetch(`${APP_URL}/api/v1/users/location/update`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -215,7 +212,7 @@ const Routes = ({route, navigation, isAuthorized}) => {
               Geolocation.getCurrentPosition(
                 position => {
                   const date = new Date(position.timestamp);
-                  fetch(`${DEV_URL}/api/v1/users/location/update`, {
+                  fetch(`${APP_URL}/api/v1/users/location/update`, {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
@@ -313,7 +310,7 @@ const Routes = ({route, navigation, isAuthorized}) => {
     Geolocation.getCurrentPosition(
       position => {
         const date = new Date(position.timestamp);
-        fetch(`${DEV_URL}/api/v1/routes/activate/override`, {
+        fetch(`${APP_URL}/api/v1/routes/activate/override`, {
           method: 'POST',
           credentials: 'include',
           headers: {
@@ -363,7 +360,7 @@ const Routes = ({route, navigation, isAuthorized}) => {
   useEffect(() => {
     setLoading(true);
     if (jwt) {
-      fetch(`${DEV_URL}/api/v1/users/routes`, {
+      fetch(`${APP_URL}/api/v1/users/routes`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -426,21 +423,25 @@ const Routes = ({route, navigation, isAuthorized}) => {
             style={{
               ...styles.contentStyles,
             }}>
-            {routes.map(route => {
-              return (
-                <RouteCard
-                  id={route._id}
-                  key={route._id}
-                  routeName={route.routeName}
-                  jwt={jwt}
-                  active={route.active}
-                  toggleUpdate={uuid => setUpdate(uuid)}
-                  openPopup={openPopup}
-                  closePopup={closePopup}
-                  destination={route.destination}
-                />
-              );
-            })}
+            {routes.length > 0 ? (
+              routes.map(route => {
+                return (
+                  <RouteCard
+                    id={route._id}
+                    key={route._id}
+                    routeName={route.routeName}
+                    jwt={jwt}
+                    active={route.active}
+                    toggleUpdate={uuid => setUpdate(uuid)}
+                    openPopup={openPopup}
+                    closePopup={closePopup}
+                    destination={route.destination}
+                  />
+                );
+              })
+            ) : (
+              <Text style={{color: 'gray'}}>You dont have any routes</Text>
+            )}
           </View>
         )}
       </ScrollView>
@@ -452,7 +453,7 @@ const Routes = ({route, navigation, isAuthorized}) => {
         }}>
         <TouchableOpacity
           style={styles.mainButton}
-          onPress={() => navigation.navigate('CreateRoute')}>
+          onPress={() => navigation.push('CreateRoute')}>
           <Text style={{color: 'white', fontSize: 30}}>+</Text>
         </TouchableOpacity>
       </View>

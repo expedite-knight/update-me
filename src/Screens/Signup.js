@@ -6,15 +6,17 @@ import {
   Dimensions,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
+  Keyboard,
+  TouchableWithoutFeedback,
+  ScrollView,
 } from 'react-native';
 import {TextInput} from 'react-native-gesture-handler';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {SafeAreaView} from 'react-native-safe-area-context';
 
 const {width, height} = Dimensions.get('screen');
 
-//mingold1@gmail.com
-//Password1
 const Signup = ({navigation}) => {
   const [error, setError] = useState(false);
   const [email, setEmail] = useState('');
@@ -22,9 +24,6 @@ const Signup = ({navigation}) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
-  const insets = useSafeAreaInsets();
-
-  console.log(insets);
 
   const handleCreateAccount = () => {
     if (
@@ -36,7 +35,7 @@ const Signup = ({navigation}) => {
       setError('Please fill out all fields');
     } else {
       setLoading(true);
-      fetch(`${DEV_URL}/api/v1/auth/register`, {
+      fetch(`${APP_URL}/api/v1/auth/register`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -57,7 +56,7 @@ const Signup = ({navigation}) => {
           if (data.status === 200) {
             navigation.navigate('Login');
           } else {
-            setError(data.body.message[0]);
+            setError(data.body.message);
           }
           setLoading(false);
         })
@@ -68,77 +67,86 @@ const Signup = ({navigation}) => {
   };
 
   return (
-    <>
+    <SafeAreaView style={{flex: 1}}>
       {!loading ? (
-        <View style={styles.containerStyle}>
-          <Text style={styles.headerTextStyles}>Sign up</Text>
-          <View style={styles.inputsStyles}>
-            <TextInput
-              style={styles.inputStyles}
-              placeholder="Email"
-              value={email}
-              onChangeText={e => setEmail(e.valueOf())}
-            />
-            <TextInput
-              style={styles.inputStyles}
-              placeholder="Password"
-              value={password}
-              secureTextEntry={true}
-              onChangeText={e => setPassword(e.valueOf())}
-            />
-            <TextInput
-              style={styles.inputStyles}
-              placeholder="First name"
-              value={firstName}
-              onChangeText={e => setFirstName(e.valueOf())}
-            />
-            <TextInput
-              style={styles.inputStyles}
-              placeholder="Last name"
-              value={lastName}
-              onChangeText={e => setLastName(e.valueOf())}
-            />
-          </View>
-          <View style={{gap: 10}}>
-            <TouchableOpacity
-              style={styles.buttonStyles}
-              onPress={handleCreateAccount}>
-              <Text style={styles.buttonTextStyles}>Create Account</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={{...styles.buttonStyles, backgroundColor: 'black'}}
-              onPress={() => {
-                setEmail('');
-                setPassword('');
-                setFirstName('');
-                setLastName('');
-              }}>
-              <Text style={styles.buttonTextStyles}>Reset</Text>
-            </TouchableOpacity>
-          </View>
-          {error && <Text style={styles.errorStyle}>{error}</Text>}
-        </View>
+        <ScrollView automaticallyAdjustKeyboardInsets={true}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <>
+              <View style={styles.containerStyle}>
+                <View style={{alignItems: 'center'}}>
+                  <Image
+                    source={require('../Assets/EK_logo.png')}
+                    style={{width: 300, height: 150}}
+                  />
+                </View>
+                <View style={styles.inputsStyles}>
+                  <TextInput
+                    style={styles.inputStyles}
+                    placeholder="Email"
+                    value={email}
+                    onChangeText={e => setEmail(e.valueOf())}
+                  />
+                  <TextInput
+                    style={styles.inputStyles}
+                    placeholder="Password"
+                    value={password}
+                    secureTextEntry={true}
+                    onChangeText={e => setPassword(e.valueOf())}
+                  />
+                  <TextInput
+                    style={styles.inputStyles}
+                    placeholder="First name"
+                    value={firstName}
+                    onChangeText={e => setFirstName(e.valueOf())}
+                  />
+                  <TextInput
+                    style={styles.inputStyles}
+                    placeholder="Last name"
+                    value={lastName}
+                    onChangeText={e => setLastName(e.valueOf())}
+                  />
+                </View>
+                <View style={{padding: 20, gap: 10}}>
+                  <TouchableOpacity
+                    style={styles.buttonStyles}
+                    onPress={handleCreateAccount}>
+                    <Text style={styles.buttonTextStyles}>Create Account</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      ...styles.buttonStyles,
+                      backgroundColor: 'black',
+                      borderColor: 'black',
+                    }}
+                    onPress={() => {
+                      setEmail('');
+                      setPassword('');
+                      setFirstName('');
+                      setLastName('');
+                    }}>
+                    <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+                      Reset
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {error && <Text style={styles.errorStyle}>{error}</Text>}
+              </View>
+            </>
+          </TouchableWithoutFeedback>
+        </ScrollView>
       ) : (
         <View style={styles.containerStyle}>
-          <ActivityIndicator size="small" color="#0000ff" />
+          <ActivityIndicator size="small" color="black" />
         </View>
       )}
-    </>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   containerStyle: {
     flex: 1,
-    alignItems: 'center',
     backgroundColor: 'white',
-    gap: 50,
-  },
-  contentStyles: {
-    flex: 1,
-    alignItems: 'center',
-    marginTop: 100,
-    gap: 50,
   },
   headerTextStyles: {
     fontSize: 30,
@@ -148,32 +156,30 @@ const styles = StyleSheet.create({
   buttonTextStyles: {
     fontSize: 20,
     fontWeight: '500',
-    color: 'white',
+    color: '#de3623',
   },
   buttonStyles: {
-    paddingHorizontal: 10,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#1bab05',
-    width: width - 40,
+    backgroundColor: 'pink',
     justifyContent: 'center',
     alignItems: 'center',
+    borderColor: '#de3623',
+    borderWidth: 1,
   },
   inputsStyles: {
     backgroundColor: 'white',
     padding: 20,
-    gap: 20,
   },
   inputStyles: {
-    paddingHorizontal: 10,
     paddingVertical: 10,
     borderBottomColor: 'gainsboro',
     borderBottomWidth: 1,
-    fontSize: 20,
+    fontSize: 15,
     backgroundColor: 'white',
-    width: width - 40,
   },
   errorStyle: {
+    textAlign: 'center',
     color: 'red',
   },
 });
