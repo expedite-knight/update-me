@@ -206,22 +206,23 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   buttonStyles: {
+    paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: 'pink',
     justifyContent: 'center',
     alignItems: 'center',
     borderColor: '#de3623',
     borderWidth: 1,
-    paddingVertical: 5,
   },
   inputsStyles: {
     backgroundColor: 'white',
-    gap: 10,
+    gap: 20,
   },
   inputStyles: {
     borderBottomColor: 'gainsboro',
     borderBottomWidth: 1,
-    fontSize: 15,
+    fontSize: 20,
+    padding: 10,
     backgroundColor: 'white',
   },
   errorStyle: {

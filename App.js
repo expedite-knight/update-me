@@ -1,15 +1,7 @@
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import 'react-native-gesture-handler';
 import React, {useState, useEffect} from 'react';
-import {
-  StatusBar,
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  Platform,
-  Image,
-} from 'react-native';
+import {Platform, Image} from 'react-native';
 import {
   NavigationContainer,
   DefaultTheme,
@@ -172,7 +164,7 @@ function App() {
                 style={{width: 80, height: 30}}
               />
             ),
-            headerBackTitle: '',
+            headerBackTitle: ' ',
             headerTitleAlign: 'center',
             headerBackImage: () => (
               <Ionicon name="chevron-back-outline" size={35} color="black" />
@@ -193,7 +185,7 @@ function App() {
                 style={{width: 80, height: 30}}
               />
             ),
-            headerBackTitle: '',
+            headerBackTitle: ' ',
             headerTitleAlign: 'center',
             headerBackImage: () => (
               <Ionicon name="chevron-back-outline" size={35} color="black" />

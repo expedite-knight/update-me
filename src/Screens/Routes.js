@@ -498,9 +498,10 @@ const styles = StyleSheet.create({
     height: 65,
     width: 65,
     elevation: 5,
-    shadowColor: 'gainsboro',
-    shadowRadius: 10,
-    shadowOpacity: 100,
+    shadowColor: 'gray',
+    shadowOffset: {width: 0, height: 0},
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
   },
 });
 

@@ -95,7 +95,7 @@ const CreateRoute = ({navigation}) => {
     setModalState(prev => !prev);
   };
 
-  function handleFetchContacts() {
+  async function handleFetchContacts() {
     if (RNSecureStorage) {
       RNSecureStorage.get('contacts')
         .then(data => {
@@ -107,7 +107,7 @@ const CreateRoute = ({navigation}) => {
         });
     } else {
       try {
-        const data = EncryptedStorage.getItem('contacts');
+        const data = await EncryptedStorage.getItem('contacts');
         setContacts(JSON.parse(data));
         setLoading(false);
       } catch (error) {
@@ -341,7 +341,11 @@ const CreateRoute = ({navigation}) => {
           </ScrollView>
         </>
       ) : (
-        <View style={styles.containerStyle}>
+        <View
+          style={{
+            ...styles.containerStyle,
+            padding: 50,
+          }}>
           <ActivityIndicator size="small" color="black" />
         </View>
       )}
@@ -385,7 +389,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomColor: 'gainsboro',
     borderBottomWidth: 1,
-    fontSize: 15,
+    fontSize: 20,
     backgroundColor: 'white',
   },
   subscriber: {

@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   TouchableWithoutFeedback,
   Keyboard,
+  Animated,
 } from 'react-native';
 import {
   ScrollView,
@@ -17,10 +18,18 @@ import {
 import {UserContext} from '../../UserContext';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import {v4 as uuid} from 'uuid';
+import Popup from '../Components/Popup';
 
 const {width, height} = Dimensions.get('screen');
 
 const Settings = ({navigation}) => {
+  const [errorPopupY, setErrorPopupY] = useState(
+    new Animated.Value(-height * 2),
+  );
+  const [popupY, setPopupY] = useState(new Animated.Value(-height * 2));
+  const [popupText, setPopupText] = useState('');
+  const [popupBackground, setPopupBackground] = useState('#1e90ff');
+  const [subtext, setSubtext] = useState('');
   const [jwt, setJwt, handleStoreToken, handleFetchToken] =
     useContext(UserContext);
   const [firstName, setFirstName] = useState('');
@@ -28,6 +37,26 @@ const Settings = ({navigation}) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const openPopup = (text, background, subtext) => {
+    setPopupText(text);
+    setPopupBackground(background);
+    setSubtext(subtext);
+
+    Animated.timing(popupY, {
+      duration: 300,
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closePopup = () => {
+    Animated.timing(popupY, {
+      duration: 300,
+      toValue: -height,
+      useNativeDriver: true,
+    }).start();
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -76,18 +105,25 @@ const Settings = ({navigation}) => {
       .then(res => res.json())
       .then(async data => {
         if (data.status === 204) {
-          console.log(data);
-          navigation.navigate('Routes', {update: uuid()});
+          openPopup('Account updated successfully', '#1e90ff');
+          setTimeout(() => {
+            closePopup();
+          }, 3000);
         } else {
-          setError(data.body.message[0]);
-          console.log('Unable to update profile: ', data);
+          console.log('data: ', data);
+          openPopup(`Unable to update account`, '#DC143C', data.body.error[0]);
+          setTimeout(() => {
+            closePopup(true);
+          }, 3000);
           //alert user that their login attempt was not successful
         }
-        //set context here (might not have to set context here cuz context is derived from store)
-        //store token here
       })
       .catch(error => {
         console.log('error updating profile:', error);
+        openPopup(`Unable to update account`, '#DC143C', error[0]);
+        setTimeout(() => {
+          closePopup(true);
+        }, 3000);
       });
   };
 
@@ -120,53 +156,69 @@ const Settings = ({navigation}) => {
   return (
     <>
       {!loading ? (
-        <ScrollView automaticallyAdjustKeyboardInsets={true}>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <SafeAreaView style={styles.containerStyle}>
-              <Text style={styles.headerTextStyles}>Settings</Text>
-              <View style={styles.inputsStyles}>
-                <TextInput
-                  placeholder="First name"
-                  style={styles.inputStyles}
-                  value={firstName}
-                  onChangeText={e => setFirstName(e.valueOf())}
-                />
-                <TextInput
-                  placeholder="Last name"
-                  style={styles.inputStyles}
-                  value={lastName}
-                  onChangeText={e => setLastName(e.valueOf())}
-                />
-                <TextInput
-                  placeholder="New password"
-                  style={styles.inputStyles}
-                  secureTextEntry={true}
-                  value={password}
-                  onChangeText={e => setPassword(e.valueOf())}
-                />
-              </View>
-              <View style={{gap: 10, marginHorizontal: 20, marginTop: 50}}>
-                <TouchableOpacity
-                  style={styles.buttonStyles}
-                  onPress={handleUpdateProfile}>
-                  <Text style={styles.buttonTextStyles}>Save</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    ...styles.buttonStyles,
-                    backgroundColor: 'black',
-                    borderColor: 'black',
-                  }}
-                  onPress={handleDeleteAccount}>
-                  <Text style={{...styles.buttonTextStyles, color: 'white'}}>
-                    Delete account
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {error && <Text style={styles.errorStyle}>{error}</Text>}
-            </SafeAreaView>
-          </TouchableWithoutFeedback>
-        </ScrollView>
+        <>
+          <Animated.View
+            style={{
+              transform: [{translateY: popupY}],
+              zIndex: 1,
+            }}>
+            <Popup
+              background={popupBackground}
+              prompt={null}
+              closePopup={closePopup}
+              handleRouteOverride={null}
+              subtext={subtext}>
+              {popupText}
+            </Popup>
+          </Animated.View>
+          <ScrollView automaticallyAdjustKeyboardInsets={true}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <SafeAreaView style={styles.containerStyle}>
+                <Text style={styles.headerTextStyles}>Settings</Text>
+                <View style={styles.inputsStyles}>
+                  <TextInput
+                    placeholder="First name"
+                    style={styles.inputStyles}
+                    value={firstName}
+                    onChangeText={e => setFirstName(e.valueOf())}
+                  />
+                  <TextInput
+                    placeholder="Last name"
+                    style={styles.inputStyles}
+                    value={lastName}
+                    onChangeText={e => setLastName(e.valueOf())}
+                  />
+                  <TextInput
+                    placeholder="New password"
+                    style={styles.inputStyles}
+                    secureTextEntry={true}
+                    value={password}
+                    onChangeText={e => setPassword(e.valueOf())}
+                  />
+                </View>
+                <View style={{gap: 10, marginHorizontal: 20, marginTop: 50}}>
+                  <TouchableOpacity
+                    style={styles.buttonStyles}
+                    onPress={handleUpdateProfile}>
+                    <Text style={styles.buttonTextStyles}>Save</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      ...styles.buttonStyles,
+                      backgroundColor: 'black',
+                      borderColor: 'black',
+                    }}
+                    onPress={handleDeleteAccount}>
+                    <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+                      Delete account
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {error && <Text style={styles.errorStyle}>{error}</Text>}
+              </SafeAreaView>
+            </TouchableWithoutFeedback>
+          </ScrollView>
+        </>
       ) : (
         <View style={styles.containerStyle}>
           <ActivityIndicator size="small" color="black" />
@@ -209,7 +261,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   inputStyles: {
-    paddingVertical: 10,
+    padding: 10,
     borderBottomColor: 'gainsboro',
     borderBottomWidth: 1,
     fontSize: 20,

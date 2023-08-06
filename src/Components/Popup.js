@@ -32,9 +32,15 @@ const Popup = ({
                 <Text style={styles.buttonTextStyles}>Override</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={{...styles.buttonStyles, backgroundColor: 'black'}}
+                style={{
+                  ...styles.buttonStyles,
+                  backgroundColor: 'black',
+                  borderColor: 'black',
+                }}
                 onPress={closePopup}>
-                <Text style={styles.buttonTextStyles}>Cancel</Text>
+                <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+                  Cancel
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -106,7 +112,7 @@ const styles = StyleSheet.create({
     elevation: 5,
     fontSize: 20,
     color: 'white',
-    gap: 10,
+    gap: 20,
   },
   text: {
     textAlign: 'center',
@@ -116,17 +122,17 @@ const styles = StyleSheet.create({
   buttonTextStyles: {
     fontSize: 20,
     fontWeight: '500',
-    color: 'white',
-    width: 100,
-    textAlign: 'center',
+    color: '#de3623',
   },
   buttonStyles: {
-    paddingHorizontal: 10,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#1bab05',
+    backgroundColor: 'pink',
     justifyContent: 'center',
     alignItems: 'center',
+    borderColor: '#de3623',
+    borderWidth: 1,
+    width: 100,
   },
 });
 

@@ -8,6 +8,7 @@ import {
   Animated,
   TouchableWithoutFeedback,
   Keyboard,
+  Platform,
 } from 'react-native';
 import {
   ScrollView,
@@ -39,7 +40,6 @@ const RouteDetails = ({route, navigation}) => {
   const [interval, setInterval] = useState('');
   const [subscribers, setSubscribers] = useState([]);
   const [active, setActive] = useState(false);
-  const [error, setError] = useState('');
   const [contacts, setContacts] = useState([]);
   const [jwt, setJwt, handleStoreToken, handleFetchToken] =
     useContext(UserContext);
@@ -93,7 +93,7 @@ const RouteDetails = ({route, navigation}) => {
     setModalState(prev => !prev);
   };
 
-  function handleFetchContacts() {
+  async function handleFetchContacts() {
     if (RNSecureStorage) {
       RNSecureStorage.get('contacts')
         .then(data => {
@@ -104,7 +104,7 @@ const RouteDetails = ({route, navigation}) => {
         });
     } else {
       try {
-        const data = EncryptedStorage.getItem('contacts');
+        const data = await EncryptedStorage.getItem('contacts');
         setContacts(JSON.parse(data));
       } catch (error) {
         console.log('Err retrieving contacts: ', error);
@@ -175,6 +175,7 @@ const RouteDetails = ({route, navigation}) => {
   }, [jwt]);
 
   function handleUpdateRoute() {
+    if (active) return null;
     setLoading(true);
     const formattedSubscribers = subscribers.map(sub => JSON.stringify(sub));
     fetch(`${APP_URL}/api/v1/routes/update`, {
@@ -226,6 +227,7 @@ const RouteDetails = ({route, navigation}) => {
   }
 
   function handleDeleteRoute() {
+    if (active) return null;
     setLoading(true);
     fetch(`${APP_URL}/api/v1/routes/delete`, {
       method: 'POST',
@@ -325,42 +327,66 @@ const RouteDetails = ({route, navigation}) => {
                     marginHorizontal: 20,
                   }}>
                   <TextInput
-                    style={styles.inputStyles}
+                    style={{
+                      ...styles.inputStyles,
+                      color: active ? 'gray' : 'black',
+                    }}
                     placeholder="Route name"
                     value={name}
                     onChangeText={e => setName(e.valueOf())}
+                    editable={!active}
                   />
                   <TextInput
-                    style={styles.inputStyles}
+                    style={{
+                      ...styles.inputStyles,
+                      color: active ? 'gray' : 'black',
+                    }}
                     placeholder="Destination address"
                     value={destination}
                     onChangeText={e => setDestination(e.valueOf())}
                     enabled={false}
                     editable={false}
                   />
-                  <SelectList
-                    setSelected={val => setInterval(val)}
-                    data={data}
-                    save="value"
-                    placeholder={interval === 1 ? '1h' : interval.concat('m')}
-                    searchPlaceholder="Interval"
-                    dropdownTextStyles={{fontSize: 16}}
-                    inputStyles={{
-                      fontSize: 20,
-                    }}
-                  />
+                  {active ? (
+                    <Text
+                      style={{
+                        fontSize: 20,
+                        padding: 10,
+                        borderWidth: 1,
+                        borderRadius: 10,
+                        borderColor: 'gray',
+                        color: 'gray',
+                      }}>
+                      {interval.concat('m')}
+                    </Text>
+                  ) : (
+                    <SelectList
+                      setSelected={val => setInterval(val)}
+                      data={data}
+                      save="value"
+                      placeholder={interval.concat('m')}
+                      searchPlaceholder="Interval"
+                      dropdownTextStyles={{fontSize: 16}}
+                      inputStyles={{
+                        fontSize: 20,
+                      }}
+                    />
+                  )}
                   <TouchableOpacity
                     style={{
                       ...styles.buttonStyles,
                       backgroundColor:
-                        subscribers.length >= 5
+                        subscribers.length >= 5 || active
                           ? 'rgba(0, 0, 0, .2)'
                           : '#1e90ff',
                       borderWidth: 1,
-                      borderColor: '#1e90ff',
+                      borderColor:
+                        subscribers.length >= 5 || active
+                          ? 'gainsboro'
+                          : '#1e90ff',
                     }}
                     onPress={openPopup}
-                    disabled={subscribers.length >= 5 ? true : false}>
+                    disabled={subscribers.length >= 5 || active ? true : false}>
                     <Text style={{...styles.buttonTextStyles, color: 'white'}}>
                       Add subscribers
                     </Text>
@@ -377,7 +403,11 @@ const RouteDetails = ({route, navigation}) => {
                           <Text
                             style={{
                               fontSize: 20,
-                              color: value.new ? '#1bab05' : 'black',
+                              color: value.new
+                                ? '#1bab05'
+                                : active
+                                ? 'gray'
+                                : 'black',
                             }}>
                             {value.number}
                           </Text>
@@ -389,11 +419,13 @@ const RouteDetails = ({route, navigation}) => {
                             />
                           ) : null}
                         </View>
-                        <TouchableOpacity
-                          style={styles.deleteButton}
-                          onPress={() => removeSubscriber(index)}>
-                          <Icon name="trash" size={25} color={'#de3623'} />
-                        </TouchableOpacity>
+                        {!active && (
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => removeSubscriber(index)}>
+                            <Icon name="trash" size={25} color={'#de3623'} />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     ))
                   ) : (
@@ -405,10 +437,21 @@ const RouteDetails = ({route, navigation}) => {
                 <View
                   style={{gap: 10, marginVertical: 50, marginHorizontal: 20}}>
                   <TouchableOpacity
-                    style={styles.buttonStyles}
-                    onPress={handleUpdateRoute}>
+                    style={{
+                      ...styles.buttonStyles,
+                      backgroundColor: active ? 'gainsboro' : 'pink',
+                      borderColor: active ? 'gainsboro' : '#de3623',
+                    }}
+                    onPress={handleUpdateRoute}
+                    disabled={!active}>
                     {!loading ? (
-                      <Text style={styles.buttonTextStyles}>Update</Text>
+                      <Text
+                        style={{
+                          ...styles.buttonTextStyles,
+                          color: active ? 'white' : '#de3623',
+                        }}>
+                        Update
+                      </Text>
                     ) : (
                       <ActivityIndicator size="small" color="black" />
                     )}
@@ -416,8 +459,8 @@ const RouteDetails = ({route, navigation}) => {
                   <TouchableOpacity
                     style={{
                       ...styles.buttonStyles,
-                      backgroundColor: 'black',
-                      borderColor: 'black',
+                      backgroundColor: active ? 'gray' : 'black',
+                      borderColor: active ? 'gray' : 'black',
                     }}
                     onPress={handleDeleteRoute}>
                     <Text style={{...styles.buttonTextStyles, color: 'white'}}>
@@ -430,7 +473,7 @@ const RouteDetails = ({route, navigation}) => {
           </ScrollView>
         </>
       ) : (
-        <View style={styles.containerStyle}>
+        <View style={{...styles.containerStyle, padding: 50}}>
           <ActivityIndicator size="small" color="black" />
         </View>
       )}
@@ -471,11 +514,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   inputStyles: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    padding: 10,
     borderBottomColor: 'gainsboro',
     borderBottomWidth: 1,
-    fontSize: 15,
+    fontSize: 20,
     backgroundColor: 'white',
   },
   subscriber: {

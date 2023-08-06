@@ -18,7 +18,7 @@ import Contact from './Contact';
 
 const {width, height} = Dimensions.get('screen');
 
-//might not clear the keyboard on ios
+//use a flatlist for loading the contacts
 const Modal = ({
   children,
   list,
@@ -33,6 +33,7 @@ const Modal = ({
   const [customNumber, setCustomNumber] = useState('');
   const [keyboardStatus, setKeyboardStatus] = useState(false);
   const [listElements, setListElements] = useState();
+  const [formattedContacts, setFormattedContacts] = useState([]);
 
   useEffect(() => {
     const keyboardShown = Keyboard.addListener('keyboardDidShow', () => {
@@ -54,6 +55,7 @@ const Modal = ({
       selectedContacts.length + subscribers.length <= 4 ||
       alreadyAdded <= 0
     ) {
+      console.log('Adding: ', number);
       setSelectedContacts(prev => [...prev, JSON.parse(number)]);
     }
   }
@@ -85,14 +87,53 @@ const Modal = ({
   }
 
   useEffect(() => {
-    setListElements(() => {
-      return allContacts
-        .filter(
-          contact =>
-            contact.phoneNumbers.length > 0 &&
-            contact.phoneNumbers[0].number.length > 6,
-        )
-        .map((contact, index) => {
+    /*
+    instead we should loop through all of these contacts and return an object
+    with everything we need like this:
+    {
+      contact: contact, 
+      addToSelected: addToSelected,
+      removeFromSelected: removeFromSelected,
+      key: {JSON.stringify(contact)},
+      state: state
+    }
+    figure out what we are doing with the temp field because its not clear to me atm
+    /*/
+    // setListElements(() => {
+    //   return allContacts.reduce((total, contact) => {
+    //     if (
+    //       contact.phoneNumbers.length > 0 &&
+    //       contact.phoneNumbers[0].number.length > 6
+    //     ) {
+    //       let temp = contact.phoneNumbers[0].number;
+    //       temp = temp.replaceAll('(', '');
+    //       temp = temp.replaceAll(')', '');
+    //       temp = temp.replaceAll('-', '');
+    //       temp = temp.replaceAll(' ', '');
+    //       temp = temp.replaceAll('+', '');
+    //       temp = temp.replace(/[^\d.-]+/g, '');
+    //       if (temp.length > 10) temp = temp.substring(1);
+    //       return [
+    //         ...total,
+    //         <Contact
+    //           contact={contact}
+    //           addToSelected={addToSelected}
+    //           removeFromSelected={removeFromSelected}
+    //           key={JSON.stringify(contact)}
+    //           state={state}
+    //         />,
+    //       ];
+    //     } else {
+    //       return total;
+    //     }
+    //   }, []);
+    // });
+    setFormattedContacts(() => {
+      return allContacts.reduce((total, contact) => {
+        if (
+          contact.phoneNumbers.length > 0 &&
+          contact.phoneNumbers[0].number.length > 6
+        ) {
           let temp = contact.phoneNumbers[0].number;
           temp = temp.replaceAll('(', '');
           temp = temp.replaceAll(')', '');
@@ -100,19 +141,22 @@ const Modal = ({
           temp = temp.replaceAll(' ', '');
           temp = temp.replaceAll('+', '');
           temp = temp.replace(/[^\d.-]+/g, '');
-
           if (temp.length > 10) temp = temp.substring(1);
-
-          return (
-            <Contact
-              contact={contact}
-              addToSelected={addToSelected}
-              removeFromSelected={removeFromSelected}
-              key={index}
-              state={state}
-            />
-          );
-        });
+          contact.phoneNumbers[0].number = temp; //?
+          return [
+            ...total,
+            {
+              contact: contact,
+              addToSelected: addToSelected,
+              removeFromSelected: removeFromSelected,
+              key: JSON.stringify(contact),
+              state: state,
+            },
+          ];
+        } else {
+          return total;
+        }
+      }, []);
     });
   }, [subscribers, state]);
 
@@ -128,7 +172,33 @@ const Modal = ({
           backgroundColor: background,
         }}>
         {list <= 0 && <Text>Contacts not available</Text>}
-        <ScrollView>{listElements}</ScrollView>
+        {/* <ScrollView>{listElements}</ScrollView> */}
+        <ScrollView>
+          <FlatList
+            scrollEnabled={false}
+            ListHeaderComponent={() => (
+              <Text style={{flex: 1, textAlign: 'center', marginVertical: 10}}>
+                Contacts
+              </Text>
+            )}
+            data={formattedContacts}
+            renderItem={({item}) => (
+              <Contact
+                contact={item.contact}
+                addToSelected={addToSelected}
+                removeFromSelected={removeFromSelected}
+                key={JSON.stringify(item.contact)}
+                state={state}
+              />
+            )}
+            keyExtractor={item => item.key}
+            ListFooterComponent={() => (
+              <Text style={{flex: 1, textAlign: 'center', marginVertical: 10}}>
+                Total contacts: {JSON.stringify(formattedContacts.length)}
+              </Text>
+            )}
+          />
+        </ScrollView>
         <View
           style={{
             flexDirection: 'row',
@@ -264,7 +334,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderColor: '#de3623',
     borderWidth: 1,
-    width: width - 240,
+    width: Platform.OS === 'android' ? width - 240 : width - 250,
   },
 });
 

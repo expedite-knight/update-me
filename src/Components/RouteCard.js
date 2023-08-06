@@ -377,9 +377,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'white',
     borderRadius: 75,
-    height: 60,
-    width: 60,
+    height: 50,
+    width: 50,
     marginHorizontal: 10,
+    elevation: 5,
+    shadowColor: 'gray',
+    shadowOffset: {width: 0, height: 0},
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
 });
 
