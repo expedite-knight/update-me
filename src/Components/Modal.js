@@ -87,47 +87,6 @@ const Modal = ({
   }
 
   useEffect(() => {
-    /*
-    instead we should loop through all of these contacts and return an object
-    with everything we need like this:
-    {
-      contact: contact, 
-      addToSelected: addToSelected,
-      removeFromSelected: removeFromSelected,
-      key: {JSON.stringify(contact)},
-      state: state
-    }
-    figure out what we are doing with the temp field because its not clear to me atm
-    /*/
-    // setListElements(() => {
-    //   return allContacts.reduce((total, contact) => {
-    //     if (
-    //       contact.phoneNumbers.length > 0 &&
-    //       contact.phoneNumbers[0].number.length > 6
-    //     ) {
-    //       let temp = contact.phoneNumbers[0].number;
-    //       temp = temp.replaceAll('(', '');
-    //       temp = temp.replaceAll(')', '');
-    //       temp = temp.replaceAll('-', '');
-    //       temp = temp.replaceAll(' ', '');
-    //       temp = temp.replaceAll('+', '');
-    //       temp = temp.replace(/[^\d.-]+/g, '');
-    //       if (temp.length > 10) temp = temp.substring(1);
-    //       return [
-    //         ...total,
-    //         <Contact
-    //           contact={contact}
-    //           addToSelected={addToSelected}
-    //           removeFromSelected={removeFromSelected}
-    //           key={JSON.stringify(contact)}
-    //           state={state}
-    //         />,
-    //       ];
-    //     } else {
-    //       return total;
-    //     }
-    //   }, []);
-    // });
     setFormattedContacts(() => {
       return allContacts.reduce((total, contact) => {
         if (
@@ -172,7 +131,6 @@ const Modal = ({
           backgroundColor: background,
         }}>
         {list <= 0 && <Text>Contacts not available</Text>}
-        {/* <ScrollView>{listElements}</ScrollView> */}
         <ScrollView>
           <FlatList
             scrollEnabled={false}
