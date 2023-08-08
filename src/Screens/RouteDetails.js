@@ -9,6 +9,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
+  Linking,
 } from 'react-native';
 import {
   ScrollView,
@@ -24,6 +25,14 @@ import Popup from '../Components/Popup';
 import Modal from '../Components/Modal';
 import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
+import Clipboard from '@react-native-clipboard/clipboard';
+import Geolocation from 'react-native-geolocation-service';
+import {
+  PERMISSIONS,
+  request,
+  check,
+  openSettings,
+} from 'react-native-permissions';
 
 const {width, height} = Dimensions.get('screen');
 
@@ -40,6 +49,7 @@ const RouteDetails = ({route, navigation}) => {
   const [interval, setInterval] = useState('');
   const [subscribers, setSubscribers] = useState([]);
   const [active, setActive] = useState(false);
+  const [deliveryMode, setDeliveryMode] = useState(false);
   const [contacts, setContacts] = useState([]);
   const [jwt, setJwt, handleStoreToken, handleFetchToken] =
     useContext(UserContext);
@@ -75,13 +85,13 @@ const RouteDetails = ({route, navigation}) => {
     setPopupText(text);
     setPopupBackground(background);
     setSubtext(subtext);
+    setModalState(prev => !prev);
 
     Animated.timing(error ? errorPopupY : popupY, {
       duration: 300,
       toValue: 0,
       useNativeDriver: true,
     }).start();
-    setModalState(prev => !prev);
   };
 
   const closePopup = error => {
@@ -160,6 +170,8 @@ const RouteDetails = ({route, navigation}) => {
             setInterval(JSON.stringify(data.body.message.interval));
             setActive(data.body.message.active);
             setSubscribers([...data.body.message.subscribers]);
+            //change this eventually but it can be undefined and that might break stuff
+            setDeliveryMode(data.body.message.deliveryMode ? true : false);
           } else {
             console.log('Something went wrong...');
           }
@@ -269,6 +281,250 @@ const RouteDetails = ({route, navigation}) => {
       });
   }
 
+  const sendActiveLocation = () => {
+    Geolocation.getCurrentPosition(
+      position => {
+        fetch(`${APP_URL}/api/v1/routes/activate`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: jwt,
+            'User-Agent': 'any-name',
+          },
+          mode: 'cors',
+          body: JSON.stringify({
+            route: routeId,
+            currentLocation: {
+              lat: position.coords.latitude,
+              long: position.coords.longitude,
+            },
+            offset: new Date().getTimezoneOffset() / 60,
+          }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === 200) {
+              openPopup('Route activated successfully', '#1e90ff', null, true);
+              setTimeout(() => {
+                closePopup(true);
+              }, 3000);
+            } else if (data.status === 409) {
+              setActive(false);
+              openPopup(
+                'Another route is already active, would you like to override it?',
+                'white',
+                true,
+                routeId,
+              );
+            } else {
+              setActive(false);
+              openPopup('Route not activated', 'red');
+              setTimeout(() => {
+                closePopup();
+              }, 3000);
+            }
+          })
+          .catch(error => {
+            console.log('ERROR:', error);
+            setActive(false);
+            openPopup('Route not activated', 'red');
+            setTimeout(() => {
+              closePopup();
+            }, 3000);
+          });
+      },
+      error => {
+        console.log(error.code, error.message);
+      },
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  };
+
+  const handleActivation = async e => {
+    setActive(true);
+
+    try {
+      if (Platform.OS === 'android') {
+        const frontPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Foreground Geolocation Permission',
+            message: 'Can we access your location?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        const backPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+          {
+            title: 'Background Geolocation Permission',
+            message: 'Can we access your location in the background?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (frontPerm === 'granted' && backPerm === 'granted') {
+          sendActiveLocation();
+        } else {
+          console.log('Permission not granted');
+          setActive(false);
+        }
+      } else {
+        const frontPerm = await request(
+          PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+        ).then(result => {
+          if (result === 'blocked') {
+            openSettings().catch(err => console.log('Unable to open settings'));
+          } else {
+            return result;
+          }
+        });
+        const backPerm = await request(PERMISSIONS.IOS.LOCATION_ALWAYS).then(
+          result => {
+            if (result === 'blocked') {
+              openSettings().catch(err =>
+                console.log('Unable to open settings'),
+              );
+            } else {
+              return result;
+            }
+          },
+        );
+        if (frontPerm === 'granted' && backPerm === 'granted') {
+          sendActiveLocation();
+        } else {
+          console.log('Permission not granted');
+          setActive(false);
+        }
+      }
+    } catch (err) {
+      console.log('Err: ', err);
+      setActive(false);
+    }
+  };
+
+  const sendDeactiveLocation = () => {
+    Geolocation.getCurrentPosition(
+      position => {
+        fetch(`${APP_URL}/api/v1/routes/deactivate`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: jwt,
+            'User-Agent': 'any-name',
+          },
+          mode: 'cors',
+          body: JSON.stringify({
+            route: routeId,
+            currentLocation: {
+              lat: position.coords.latitude,
+              long: position.coords.longitude,
+            },
+            offset: new Date().getTimezoneOffset() / 60,
+          }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status !== 200) {
+              setActive(true);
+              openPopup('Unable to deactive route', 'red');
+              setTimeout(() => {
+                closePopup();
+              }, 3000);
+            } else {
+              openPopup(
+                'Route deactivated successfully',
+                '#1e90ff',
+                null,
+                true,
+              );
+              setTimeout(() => {
+                closePopup(true);
+              }, 3000);
+            }
+          })
+          .catch(error => {
+            console.log('ERROR:', error);
+          });
+      },
+      error => {
+        console.log(error.code, error.message);
+      },
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  };
+
+  const handleDeactivation = async e => {
+    setActive(false);
+
+    try {
+      if (Platform.OS === 'android') {
+        const frontPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Foreground Geolocation Permission',
+            message: 'Can we access your location?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        const backPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+          {
+            title: 'Background Geolocation Permission',
+            message: 'Can we access your location in the background?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (frontPerm === 'granted' && backPerm === 'granted') {
+          sendDeactiveLocation();
+        } else {
+          console.log('Permission not granted');
+          setActive(true);
+        }
+      } else {
+        const frontPerm = await request(
+          PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+        ).then(result => {
+          if (result === 'blocked') {
+            openSettings().catch(err => console.log('Unable to open settings'));
+          } else {
+            return result;
+          }
+        });
+        const backPerm = await request(PERMISSIONS.IOS.LOCATION_ALWAYS).then(
+          result => {
+            if (result === 'blocked') {
+              openSettings().catch(err =>
+                console.log('Unable to open settings'),
+              );
+            } else {
+              return result;
+            }
+          },
+        );
+        if (frontPerm === 'granted' && backPerm === 'granted') {
+          sendDeactiveLocation();
+        } else {
+          console.log('Permission not granted');
+          setActive(true);
+        }
+      }
+    } catch (err) {
+      console.log('Err: ', err);
+      setActive(true);
+    }
+  };
+
   const data = [
     {key: '1', value: '5m'},
     {key: '2', value: '10m'},
@@ -305,13 +561,17 @@ const RouteDetails = ({route, navigation}) => {
           <ScrollView automaticallyAdjustKeyboardInsets={true}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <>
-                <View
+                <TouchableOpacity
                   style={{
                     backgroundColor: active ? '#AFE1AF' : 'pink',
                     borderRadius: 10,
                     marginTop: 50,
+                    marginBottom: 10,
                     marginHorizontal: 20,
-                  }}>
+                  }}
+                  onPress={() =>
+                    active ? handleDeactivation() : handleActivation()
+                  }>
                   <Text
                     style={{
                       ...styles.headerTextStyles,
@@ -319,7 +579,16 @@ const RouteDetails = ({route, navigation}) => {
                     }}>
                     {active ? 'Active' : 'Inactive'}
                   </Text>
-                </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => Clipboard.setString(routeId)}>
+                  <Text
+                    style={{
+                      textAlign: 'center',
+                      color: 'gray',
+                    }}>
+                    {routeId}
+                  </Text>
+                </TouchableOpacity>
                 <View
                   style={{
                     ...styles.inputsStyles,
@@ -347,17 +616,18 @@ const RouteDetails = ({route, navigation}) => {
                     enabled={false}
                     editable={false}
                   />
-                  {active ? (
+                  {active || deliveryMode ? (
                     <Text
                       style={{
                         fontSize: 20,
-                        padding: 10,
+                        padding: 12,
+                        paddingHorizontal: 22,
                         borderWidth: 1,
                         borderRadius: 10,
-                        borderColor: 'gray',
-                        color: 'gray',
+                        borderColor: 'gainsboro',
+                        color: 'gainsboro',
                       }}>
-                      {interval.concat('m')}
+                      {deliveryMode ? 'Delivery Mode' : interval.concat('m')}
                     </Text>
                   ) : (
                     <SelectList
@@ -393,40 +663,59 @@ const RouteDetails = ({route, navigation}) => {
                   </TouchableOpacity>
                   {subscribers.length >= 1 ? (
                     subscribers.map((value, index) => (
-                      <View key={index} index={index} style={styles.subscriber}>
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            gap: 10,
-                            alignItems: 'center',
-                          }}>
-                          <Text
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (!value.verified) {
+                            const message = encodeURI(
+                              'Hello, this is Expedite Knight. You have not verified your number yet, text "verify" to +1 704-686-8257 to start receiving SMS updates',
+                            );
+                            try {
+                              Linking.openURL(
+                                `sms:${value.number}${
+                                  Platform.OS === 'ios' ? '&' : '?'
+                                }body=${message}.`,
+                              );
+                            } catch (err) {
+                              console.log('error opening imessage or sms');
+                            }
+                          }
+                        }}
+                        key={index}>
+                        <View index={index} style={styles.subscriber}>
+                          <View
                             style={{
-                              fontSize: 20,
-                              color: value.new
-                                ? '#1bab05'
-                                : active
-                                ? 'gray'
-                                : 'black',
+                              flexDirection: 'row',
+                              gap: 10,
+                              alignItems: 'center',
                             }}>
-                            {value.number}
-                          </Text>
-                          {!value.verified ? (
-                            <Icon
-                              name="alert-circle-outline"
-                              size={25}
-                              color={'#de3623'}
-                            />
-                          ) : null}
+                            <Text
+                              style={{
+                                fontSize: 20,
+                                color: value.new
+                                  ? '#1bab05'
+                                  : active
+                                  ? 'gray'
+                                  : 'black',
+                              }}>
+                              {value.number}
+                            </Text>
+                            {!value.verified ? (
+                              <Icon
+                                name="alert-circle-outline"
+                                size={25}
+                                color={'#de3623'}
+                              />
+                            ) : null}
+                          </View>
+                          {!active && (
+                            <TouchableOpacity
+                              style={styles.deleteButton}
+                              onPress={() => removeSubscriber(index)}>
+                              <Icon name="trash" size={25} color={'#de3623'} />
+                            </TouchableOpacity>
+                          )}
                         </View>
-                        {!active && (
-                          <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => removeSubscriber(index)}>
-                            <Icon name="trash" size={25} color={'#de3623'} />
-                          </TouchableOpacity>
-                        )}
-                      </View>
+                      </TouchableOpacity>
                     ))
                   ) : (
                     <Text style={{textAlign: 'center'}}>
@@ -485,6 +774,8 @@ const styles = StyleSheet.create({
   containerStyle: {
     flex: 1,
     alignItems: 'center',
+    overflow: 'visible',
+    minHeight: height,
   },
   headerTextStyles: {
     fontSize: 20,

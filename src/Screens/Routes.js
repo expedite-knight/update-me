@@ -26,6 +26,7 @@ import {
   check,
   openSettings,
 } from 'react-native-permissions';
+import {useFocusEffect} from '@react-navigation/native';
 
 const {width, height} = Dimensions.get('screen');
 
@@ -39,6 +40,12 @@ const Routes = ({route, navigation, isAuthorized}) => {
   const [popupBackground, setPopupBackground] = useState('#1e90ff');
   const [isPopupPrompt, setIsPopupPrompt] = useState(false);
   const [overrideId, setOverrideId] = useState('');
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setUpdate(uuid());
+    }, []),
+  );
 
   const openPopup = (text, background, prompt, routeId) => {
     setPopupText(text);
@@ -283,8 +290,6 @@ const Routes = ({route, navigation, isAuthorized}) => {
     },
   };
 
-  //for some reason this func is getting called a few times on render(sometimes)
-  //fix it by adding async await to the functions that start and stop it
   const handleStartTask = async () => {
     console.log('Tracking location...');
     if (BackgroundService.isRunning()) {

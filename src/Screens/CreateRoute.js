@@ -43,6 +43,7 @@ const CreateRoute = ({navigation}) => {
   const [destination, setDestination] = useState('');
   const [interval, setInterval] = useState('');
   const [subscribers, setSubscribers] = useState([]);
+  const [deliveryMode, setDeliveryMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState([]);
   const [jwt, setJwt, handleStoreToken, handleFetchToken] =
@@ -159,6 +160,7 @@ const CreateRoute = ({navigation}) => {
         quickRoute: quickRoute,
         interval: interval,
         subscribers: formattedSubscribers,
+        deliveryMode: deliveryMode,
       }),
     })
       .then(res => res.json())
@@ -247,30 +249,65 @@ const CreateRoute = ({navigation}) => {
                     value={destination}
                     onChangeText={e => setDestination(e.valueOf())}
                   />
-                  <SelectList
-                    setSelected={val => setInterval(val)}
-                    data={data}
-                    save="value"
-                    placeholder="Interval"
-                    searchPlaceholder="Interval"
-                    dropdownTextStyles={{fontSize: 16}}
-                    inputStyles={{
-                      fontSize: 20,
-                    }}
-                  />
-                  {/* <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: Platform.OS === 'ios' ? 10 : 0,
-                }}>
-                <CheckBox
-                  disabled={false}
-                  value={quickRoute}
-                  onValueChange={value => setQuickRoute(value)}
-                />
-                <Text style={{fontSize: 15}}>Quick Route</Text>
-              </View> */}
+                  {deliveryMode ? (
+                    <Text
+                      style={{
+                        fontSize: 20,
+                        padding: 12,
+                        paddingHorizontal: 22,
+                        borderWidth: 1,
+                        borderRadius: 10,
+                        borderColor: 'gainsboro',
+                        color: 'gainsboro',
+                      }}>
+                      Delivery Mode
+                    </Text>
+                  ) : (
+                    <SelectList
+                      setSelected={val => setInterval(val)}
+                      data={data}
+                      save="value"
+                      placeholder={'Interval'}
+                      searchPlaceholder="Interval"
+                      dropdownTextStyles={{fontSize: 16}}
+                      inputStyles={{
+                        fontSize: 20,
+                      }}
+                    />
+                  )}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-evenly',
+                      marginVertical: 10,
+                    }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: Platform.OS === 'ios' ? 10 : 0,
+                      }}>
+                      <CheckBox
+                        disabled={true}
+                        value={quickRoute}
+                        onValueChange={value => setQuickRoute(value)}
+                      />
+                      <Text style={{fontSize: 15}}>Quick Route</Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: Platform.OS === 'ios' ? 10 : 0,
+                      }}>
+                      <CheckBox
+                        disabled={false}
+                        value={deliveryMode}
+                        onValueChange={value => setDeliveryMode(value)}
+                      />
+                      <Text style={{fontSize: 15}}>Delivery Mode</Text>
+                    </View>
+                  </View>
                   <TouchableOpacity
                     style={{
                       ...styles.buttonStyles,
@@ -357,6 +394,8 @@ const styles = StyleSheet.create({
   containerStyle: {
     flex: 1,
     alignItems: 'center',
+    overflow: 'visible',
+    minHeight: height,
   },
   headerTextStyles: {
     fontSize: 20,

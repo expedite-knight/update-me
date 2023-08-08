@@ -11,9 +11,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 const {width, height} = Dimensions.get('screen');
 
 //contacts update properly now but its so slow, maybe fix it later
-const Contact = ({contact, removeFromSelected, addToSelected, state}) => {
+const Contact = ({contact, removeFromSelected, addToSelected, state, init}) => {
   const [number, setNumber] = useState('');
-  const [selected, setSelected] = useState();
+  const [selected, setSelected] = useState(init);
 
   useEffect(() => {
     let temp = contact.phoneNumbers[0].number;
@@ -23,10 +23,6 @@ const Contact = ({contact, removeFromSelected, addToSelected, state}) => {
     temp = temp.replaceAll(' ', '');
     setNumber(temp);
   }, []);
-
-  useEffect(() => {
-    setSelected(prev => !state);
-  }, [state]);
 
   return (
     <TouchableOpacity

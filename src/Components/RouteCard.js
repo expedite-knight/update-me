@@ -50,7 +50,6 @@ const RouteCard = props => {
   const sendActiveLocation = () => {
     Geolocation.getCurrentPosition(
       position => {
-        console.log('curr pos: ', position);
         fetch(`${APP_URL}/api/v1/routes/activate`, {
           method: 'POST',
           credentials: 'include',

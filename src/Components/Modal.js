@@ -31,23 +31,7 @@ const Modal = ({
   const [allContacts, setAllContacts] = useState(list);
   const [selectedContacts, setSelectedContacts] = useState([]);
   const [customNumber, setCustomNumber] = useState('');
-  const [keyboardStatus, setKeyboardStatus] = useState(false);
-  const [listElements, setListElements] = useState();
   const [formattedContacts, setFormattedContacts] = useState([]);
-
-  useEffect(() => {
-    const keyboardShown = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardStatus(true);
-    });
-    const keyboardHidden = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardStatus(false);
-    });
-
-    return () => {
-      keyboardShown.remove();
-      keyboardHidden.remove();
-    };
-  }, []);
 
   function addToSelected(number) {
     const alreadyAdded = subscribers.filter(sub => sub.number == number);
@@ -55,7 +39,6 @@ const Modal = ({
       selectedContacts.length + subscribers.length <= 4 ||
       alreadyAdded <= 0
     ) {
-      console.log('Adding: ', number);
       setSelectedContacts(prev => [...prev, JSON.parse(number)]);
     }
   }
@@ -71,18 +54,21 @@ const Modal = ({
       contact => contact?.phoneNumbers[0]?.number === customNumber,
     );
 
-    if (
-      alreadyAdded <= 0 &&
-      subscribers.length + selectedContacts.length <= 4
-    ) {
+    const notAlreadyAdded = allContacts.filter(
+      contact => contact?.phoneNumbers[0]?.number !== customNumber,
+    );
+
+    if (subscribers.length + selectedContacts.length <= 4) {
       setAllContacts(prev => {
-        return [...prev, {phoneNumbers: [{number: customNumber}]}];
+        return [
+          ...notAlreadyAdded,
+          {...alreadyAdded[0], phoneNumbers: [{number: customNumber}]},
+        ];
       });
 
       if (selectedContacts.length < 5) {
         addToSelected(customNumber);
       }
-      setCustomNumber('');
     }
   }
 
@@ -100,8 +86,10 @@ const Modal = ({
           temp = temp.replaceAll(' ', '');
           temp = temp.replaceAll('+', '');
           temp = temp.replace(/[^\d.-]+/g, '');
+
           if (temp.length > 10) temp = temp.substring(1);
           contact.phoneNumbers[0].number = temp; //?
+
           return [
             ...total,
             {
@@ -110,6 +98,7 @@ const Modal = ({
               removeFromSelected: removeFromSelected,
               key: JSON.stringify(contact),
               state: state,
+              init: customNumber === temp,
             },
           ];
         } else {
@@ -117,7 +106,8 @@ const Modal = ({
         }
       }, []);
     });
-  }, [subscribers, state]);
+    setCustomNumber('');
+  }, [subscribers, allContacts, state, selectedContacts]);
 
   useEffect(() => {
     setAllContacts(list);
@@ -147,6 +137,7 @@ const Modal = ({
                 removeFromSelected={removeFromSelected}
                 key={JSON.stringify(item.contact)}
                 state={state}
+                init={item.init}
               />
             )}
             keyExtractor={item => item.key}
@@ -219,7 +210,10 @@ const Modal = ({
               backgroundColor: 'black',
               borderColor: 'black',
             }}
-            onPress={closeModal}>
+            onPress={() => {
+              setSelectedContacts([]);
+              closeModal();
+            }}>
             <Text style={{...styles.buttonTextStyles, color: 'white'}}>
               Close
             </Text>
