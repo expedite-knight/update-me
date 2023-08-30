@@ -10,6 +10,7 @@ import {
   Keyboard,
   Platform,
   Linking,
+  PermissionsAndroid,
 } from 'react-native';
 import {
   ScrollView,
@@ -33,14 +34,16 @@ import {
   check,
   openSettings,
 } from 'react-native-permissions';
+import Contacts from 'react-native-contacts';
 
 const {width, height} = Dimensions.get('screen');
 
 const RouteDetails = ({route, navigation}) => {
-  const [errorPopupY, setErrorPopupY] = useState(
+  const [popupY, setPopupY] = useState(new Animated.Value(-height * 2));
+  const [modalY, setModalY] = useState(new Animated.Value(-height * 2));
+  const [overrideModalY, setOverrideModalY] = useState(
     new Animated.Value(-height * 2),
   );
-  const [popupY, setPopupY] = useState(new Animated.Value(-height * 2));
   const [popupText, setPopupText] = useState('');
   const [popupBackground, setPopupBackground] = useState('#1e90ff');
   const [subtext, setSubtext] = useState(null);
@@ -51,13 +54,27 @@ const RouteDetails = ({route, navigation}) => {
   const [active, setActive] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState(false);
   const [contacts, setContacts] = useState([]);
-  const [jwt, setJwt, handleStoreToken, handleFetchToken] =
+  const [jwt, setJwt, handleStoreToken, handleFetchToken, verifyRefreshToken] =
     useContext(UserContext);
   const {routeId} = route.params;
   const [loading, setLoading] = useState(true);
   const [modalElement, setModalElement] = useState();
   const [modalState, setModalState] = useState(false);
+  const [update, setUpdate] = useState(false);
   const scrollRef = useRef(null);
+
+  useEffect(() => {
+    const hideKeyboard = Keyboard.addListener('keyboardDidHide', () => {
+      scrollRef.current?.scrollTo({
+        y: 0,
+        animated: true,
+      });
+    });
+
+    return () => {
+      hideKeyboard.remove();
+    };
+  }, []);
 
   useEffect(() => {
     handleFetchContacts();
@@ -67,7 +84,7 @@ const RouteDetails = ({route, navigation}) => {
     setModalElement(() => (
       <Modal
         background={'white'}
-        closeModal={closePopup}
+        closeModal={closeModal}
         onClick={handleAddSubscribers}
         list={contacts}
         subscribers={subscribers}
@@ -77,25 +94,22 @@ const RouteDetails = ({route, navigation}) => {
     ));
   }, [subscribers, modalState, contacts]);
 
-  const openPopup = (text, background, subtext, error) => {
+  const openModal = () => {
     scrollRef.current?.scrollTo({
       y: 0,
       animated: true,
     });
-    setPopupText(text);
-    setPopupBackground(background);
-    setSubtext(subtext);
     setModalState(prev => !prev);
 
-    Animated.timing(error ? errorPopupY : popupY, {
+    Animated.timing(modalY, {
       duration: 300,
       toValue: 0,
       useNativeDriver: true,
     }).start();
   };
 
-  const closePopup = error => {
-    Animated.timing(error ? errorPopupY : popupY, {
+  const closeModal = () => {
+    Animated.timing(modalY, {
       duration: 300,
       toValue: -height,
       useNativeDriver: true,
@@ -103,22 +117,81 @@ const RouteDetails = ({route, navigation}) => {
     setModalState(prev => !prev);
   };
 
+  const openPopup = (text, background, subtext) => {
+    scrollRef.current?.scrollTo({
+      y: 0,
+      animated: true,
+    });
+    setPopupText(text);
+    setPopupBackground(background);
+    setSubtext(subtext);
+
+    Animated.timing(popupY, {
+      duration: 300,
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closePopup = () => {
+    Animated.timing(popupY, {
+      duration: 300,
+      toValue: -height,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const openOverrideModal = (text, background, subtext) => {
+    scrollRef.current?.scrollTo({
+      y: 0,
+      animated: true,
+    });
+    setPopupText(text);
+    setPopupBackground(background);
+    setSubtext(subtext);
+
+    Animated.timing(overrideModalY, {
+      duration: 300,
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeOverrideModal = () => {
+    Animated.timing(overrideModalY, {
+      duration: 300,
+      toValue: -height,
+      useNativeDriver: true,
+    }).start();
+  };
+
   async function handleFetchContacts() {
-    if (RNSecureStorage) {
-      RNSecureStorage.get('contacts')
-        .then(data => {
-          setContacts(JSON.parse(data));
-        })
-        .catch(err => {
-          console.log(err);
-        });
+    if (Platform.OS === 'ios') {
+      request(PERMISSIONS.IOS.CONTACTS).then(result => {
+        if (result === 'granted') {
+          Contacts.getAll()
+            .then(data => {
+              setContacts(data);
+              setLoading(false);
+            })
+            .catch(err => {
+              console.log('Unable to get contacts: ', err);
+              setLoading(false);
+            });
+        }
+      });
     } else {
-      try {
-        const data = await EncryptedStorage.getItem('contacts');
-        setContacts(JSON.parse(data));
-      } catch (error) {
-        console.log('Err retrieving contacts: ', error);
-      }
+      request(PERMISSIONS.ANDROID.READ_CONTACTS).then(result => {
+        if (result === 'granted') {
+          Contacts.getAll()
+            .then(data => {
+              setContacts(data);
+            })
+            .catch(err => {
+              console.log('Unable to get contacts: ', err);
+            });
+        }
+      });
     }
   }
 
@@ -184,7 +257,7 @@ const RouteDetails = ({route, navigation}) => {
       console.log('User not logged in.');
       navigation.navigate('Login');
     }
-  }, [jwt]);
+  }, [jwt, update]);
 
   function handleUpdateRoute() {
     if (active) return null;
@@ -218,22 +291,17 @@ const RouteDetails = ({route, navigation}) => {
           });
         } else {
           setLoading(false);
-          openPopup(
-            `Unable to create route:`,
-            '#DC143C',
-            data.body.message[0],
-            true,
-          );
+          openPopup(`Unable to create route:`, '#DC143C', data.body.message[0]);
           setTimeout(() => {
-            closePopup(true);
+            closePopup();
           }, 3000);
         }
       })
       .catch(error => {
         setLoading(false);
-        openPopup(`Something went wrong...`, '#DC143C', null, true);
+        openPopup(`Something went wrong...`, '#DC143C');
         setTimeout(() => {
-          closePopup(true);
+          closePopup();
         }, 3000);
       });
   }
@@ -266,17 +334,17 @@ const RouteDetails = ({route, navigation}) => {
           });
         } else {
           setLoading(false);
-          openPopup(`Unable to delete route`, '#DC143C', null, true);
+          openPopup(`Unable to delete route`, '#DC143C');
           setTimeout(() => {
-            closePopup(true);
+            closePopup();
           }, 3000);
         }
       })
       .catch(error => {
         setLoading(false);
-        openPopup(`Something went wrong...`, '#DC143C', null, true);
+        openPopup(`Something went wrong...`, '#DC143C');
         setTimeout(() => {
-          closePopup(true);
+          closePopup();
         }, 3000);
       });
   }
@@ -306,21 +374,19 @@ const RouteDetails = ({route, navigation}) => {
           .then(res => res.json())
           .then(data => {
             if (data.status === 200) {
-              openPopup('Route activated successfully', '#1e90ff', null, true);
+              openPopup('Route activated successfully', '#1e90ff');
               setTimeout(() => {
-                closePopup(true);
+                closePopup();
               }, 3000);
             } else if (data.status === 409) {
               setActive(false);
-              openPopup(
+              openOverrideModal(
                 'Another route is already active, would you like to override it?',
                 'white',
-                true,
-                routeId,
               );
             } else {
               setActive(false);
-              openPopup('Route not activated', 'red');
+              openPopup('Unable to activate route', '#DC143C');
               setTimeout(() => {
                 closePopup();
               }, 3000);
@@ -329,7 +395,7 @@ const RouteDetails = ({route, navigation}) => {
           .catch(error => {
             console.log('ERROR:', error);
             setActive(false);
-            openPopup('Route not activated', 'red');
+            openPopup('Unable to activate route', '#DC143C');
             setTimeout(() => {
               closePopup();
             }, 3000);
@@ -344,7 +410,7 @@ const RouteDetails = ({route, navigation}) => {
 
   const handleActivation = async e => {
     setActive(true);
-
+    console.log('here');
     try {
       if (Platform.OS === 'android') {
         const frontPerm = await PermissionsAndroid.request(
@@ -433,19 +499,14 @@ const RouteDetails = ({route, navigation}) => {
           .then(data => {
             if (data.status !== 200) {
               setActive(true);
-              openPopup('Unable to deactive route', 'red');
+              openPopup('Unable to deactive route', '#DC143C');
               setTimeout(() => {
                 closePopup();
               }, 3000);
             } else {
-              openPopup(
-                'Route deactivated successfully',
-                '#1e90ff',
-                null,
-                true,
-              );
+              openPopup('Route deactivated successfully', '#1e90ff');
               setTimeout(() => {
-                closePopup(true);
+                closePopup();
               }, 3000);
             }
           })
@@ -525,6 +586,64 @@ const RouteDetails = ({route, navigation}) => {
     }
   };
 
+  async function handleRouteOverride() {
+    closeOverrideModal();
+    Geolocation.getCurrentPosition(
+      position => {
+        const date = new Date(position.timestamp);
+        fetch(`${APP_URL}/api/v1/routes/activate/override`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: jwt,
+            'User-Agent': 'any-name',
+          },
+          mode: 'cors',
+          body: JSON.stringify({
+            route: routeId,
+            currentLocation: {
+              lat: position.coords.latitude,
+              long: position.coords.longitude,
+            },
+            offset: new Date().getTimezoneOffset() / 60,
+          }),
+        })
+          .then(res => res.json())
+          .then(async data => {
+            if (data.status === 200) {
+              openPopup('Route overriden successfully', '#1e90ff');
+              setTimeout(() => {
+                closePopup();
+              }, 3000);
+            } else {
+              openPopup('Unable to override route', '#DC143C');
+              setTimeout(() => {
+                closePopup();
+              }, 3000);
+            }
+            setUpdate(prev => !prev);
+          })
+          .catch(error => {
+            console.log('Unable to update location with ERROR:', error);
+            openPopup(
+              'Something went wrong...',
+              '#DC143C',
+              JSON.stringify(error),
+            );
+            setTimeout(() => {
+              closePopup();
+            }, 3000);
+          });
+      },
+      error => {
+        console.log(error.code, error.message);
+      },
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  }
+
   const data = [
     {key: '1', value: '5m'},
     {key: '2', value: '10m'},
@@ -539,14 +658,15 @@ const RouteDetails = ({route, navigation}) => {
         <>
           <Animated.View
             style={{
-              transform: [{translateY: popupY}],
+              transform: [{translateY: modalY}],
               zIndex: 1,
+              minHeight: modalState ? height : null,
             }}>
             {modalElement}
           </Animated.View>
           <Animated.View
             style={{
-              transform: [{translateY: errorPopupY}],
+              transform: [{translateY: popupY}],
               zIndex: 1,
             }}>
             <Popup
@@ -558,12 +678,25 @@ const RouteDetails = ({route, navigation}) => {
               {popupText}
             </Popup>
           </Animated.View>
+          <Animated.View
+            style={{
+              transform: [{translateY: overrideModalY}],
+              zIndex: 1,
+            }}>
+            <Popup
+              background={popupBackground}
+              prompt={true}
+              closePopup={closeOverrideModal}
+              handleRouteOverride={handleRouteOverride}>
+              {popupText}
+            </Popup>
+          </Animated.View>
           <ScrollView automaticallyAdjustKeyboardInsets={true}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <>
                 <TouchableOpacity
                   style={{
-                    backgroundColor: active ? '#AFE1AF' : 'pink',
+                    backgroundColor: active ? '#AFE1AF' : 'gainsboro',
                     borderRadius: 10,
                     marginTop: 50,
                     marginBottom: 10,
@@ -575,7 +708,7 @@ const RouteDetails = ({route, navigation}) => {
                   <Text
                     style={{
                       ...styles.headerTextStyles,
-                      color: active ? '#03c04a' : '#de3623',
+                      color: active ? '#03c04a' : 'gray',
                     }}>
                     {active ? 'Active' : 'Inactive'}
                   </Text>
@@ -648,16 +781,15 @@ const RouteDetails = ({route, navigation}) => {
                       backgroundColor:
                         subscribers.length >= 5 || active
                           ? 'rgba(0, 0, 0, .2)'
-                          : '#1e90ff',
-                      borderWidth: 1,
-                      borderColor:
-                        subscribers.length >= 5 || active
-                          ? 'gainsboro'
-                          : '#1e90ff',
+                          : 'black',
                     }}
-                    onPress={openPopup}
+                    onPress={openModal}
                     disabled={subscribers.length >= 5 || active ? true : false}>
-                    <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+                    <Text
+                      style={{
+                        ...styles.buttonTextStyles,
+                        color: active ? 'gray' : 'white',
+                      }}>
                       Add subscribers
                     </Text>
                   </TouchableOpacity>
@@ -710,7 +842,9 @@ const RouteDetails = ({route, navigation}) => {
                           {!active && (
                             <TouchableOpacity
                               style={styles.deleteButton}
-                              onPress={() => removeSubscriber(index)}>
+                              onPress={() =>
+                                !active ? removeSubscriber(index) : null
+                              }>
                               <Icon name="trash" size={25} color={'#de3623'} />
                             </TouchableOpacity>
                           )}
@@ -728,16 +862,15 @@ const RouteDetails = ({route, navigation}) => {
                   <TouchableOpacity
                     style={{
                       ...styles.buttonStyles,
-                      backgroundColor: active ? 'gainsboro' : 'pink',
-                      borderColor: active ? 'gainsboro' : '#de3623',
+                      backgroundColor: active ? 'gainsboro' : '#AFE1AF',
                     }}
                     onPress={handleUpdateRoute}
-                    disabled={!active}>
+                    disabled={active}>
                     {!loading ? (
                       <Text
                         style={{
                           ...styles.buttonTextStyles,
-                          color: active ? 'white' : '#de3623',
+                          color: active ? 'gray' : '#03c04a',
                         }}>
                         Update
                       </Text>
@@ -748,11 +881,14 @@ const RouteDetails = ({route, navigation}) => {
                   <TouchableOpacity
                     style={{
                       ...styles.buttonStyles,
-                      backgroundColor: active ? 'gray' : 'black',
-                      borderColor: active ? 'gray' : 'black',
+                      backgroundColor: active ? 'gainsboro' : 'pink',
                     }}
                     onPress={handleDeleteRoute}>
-                    <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+                    <Text
+                      style={{
+                        ...styles.buttonTextStyles,
+                        color: active ? 'gray' : '#de3623',
+                      }}>
                       Delete
                     </Text>
                   </TouchableOpacity>
@@ -797,8 +933,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'pink',
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: '#de3623',
-    borderWidth: 1,
   },
   inputsStyles: {
     backgroundColor: 'white',

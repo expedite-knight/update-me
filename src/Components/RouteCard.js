@@ -25,7 +25,6 @@ import {
 
 const {width, height} = Dimensions.get('screen');
 
-//
 const RouteCard = props => {
   const [active, setActive] = useState(props.active);
   const [error, setError] = useState('');
@@ -40,7 +39,7 @@ const RouteCard = props => {
         }}>
         <TouchableOpacity
           style={styles.deleteButton}
-          onPress={handleDeleteRoute}>
+          onPress={!active ? handleDeleteRoute : null}>
           <Icon name="trash" size={25} color={'#de3623'} />
         </TouchableOpacity>
       </View>
@@ -86,7 +85,7 @@ const RouteCard = props => {
               );
             } else {
               setActive(false);
-              props.openPopup('Route not activated', 'red');
+              props.openPopup('Unable to activate route', '#DC143C');
               setTimeout(() => {
                 props.closePopup();
               }, 3000);
@@ -95,7 +94,7 @@ const RouteCard = props => {
           .catch(error => {
             console.log('ERROR:', error);
             setActive(false);
-            props.openPopup('Route not activated', 'red');
+            props.openPopup('Unable to activate route', '#DC143C');
             setTimeout(() => {
               props.closePopup();
             }, 3000);
@@ -200,7 +199,7 @@ const RouteCard = props => {
           .then(data => {
             if (data.status !== 200) {
               setActive(true);
-              props.openPopup('Unable to deactive route', 'red');
+              props.openPopup('Unable to deactive route', '#DC143C');
               setTimeout(() => {
                 props.closePopup();
               }, 3000);
@@ -306,7 +305,12 @@ const RouteCard = props => {
       .then(res => res.json())
       .then(data => {
         if (data.status === 204) {
-          props.toggleUpdate(uuid());
+          nav.navigate('Routes', {
+            update: uuid(),
+            updatedRoute: '',
+            createdRoute: '',
+            deletedRoute: 'success',
+          });
         } else {
           setError(data.body.error[0]);
         }
@@ -326,10 +330,24 @@ const RouteCard = props => {
         style={styles.container}
         onPress={() => nav.navigate('RouteDetails', {routeId: props.id})}>
         <View style={{gap: 5}}>
-          <Text style={{fontWeight: '400', fontSize: 20, color: 'black'}}>
+          <Text
+            numberOfLines={1}
+            style={{
+              fontWeight: '400',
+              fontSize: 20,
+              color: 'black',
+              maxWidth: width - 100,
+            }}>
             {props.routeName}
           </Text>
-          <Text style={{fontWeight: '400', fontSize: 15, color: 'gray'}}>
+          <Text
+            numberOfLines={1}
+            style={{
+              fontWeight: '400',
+              fontSize: 15,
+              color: 'gray',
+              maxWidth: width - 100,
+            }}>
             {props.destination}
           </Text>
         </View>
@@ -338,17 +356,13 @@ const RouteCard = props => {
             style={{
               justifyContent: 'center',
               alignItems: 'center',
-              backgroundColor: active ? '#AFE1AF' : 'pink',
+              backgroundColor: active ? '#AFE1AF' : 'gainsboro',
               width: 50,
               height: 50,
               borderRadius: 50,
             }}
             onPress={active ? handleDeactivation : handleActivation}>
-            <Icon
-              name="power"
-              size={30}
-              color={active ? '#03c04a' : '#de3623'}
-            />
+            <Icon name="power" size={30} color={active ? '#03c04a' : 'gray'} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -374,16 +388,11 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'white',
+    backgroundColor: 'pink',
     borderRadius: 75,
     height: 50,
     width: 50,
-    marginHorizontal: 10,
-    elevation: 5,
-    shadowColor: 'gray',
-    shadowOffset: {width: 0, height: 0},
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    marginLeft: 20,
   },
 });
 

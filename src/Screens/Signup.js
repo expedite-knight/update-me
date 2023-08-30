@@ -17,6 +17,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 
 const {width, height} = Dimensions.get('screen');
 
+//update
 const Signup = ({navigation}) => {
   const [error, setError] = useState(false);
   const [email, setEmail] = useState('');
@@ -79,38 +80,46 @@ const Signup = ({navigation}) => {
                     style={{width: 300, height: 150}}
                   />
                 </View>
-                <View style={styles.inputsStyles}>
-                  <TextInput
-                    style={styles.inputStyles}
-                    placeholder="Email"
-                    value={email}
-                    onChangeText={e => setEmail(e.valueOf())}
-                  />
-                  <TextInput
-                    style={styles.inputStyles}
-                    placeholder="Password"
-                    value={password}
-                    secureTextEntry={true}
-                    onChangeText={e => setPassword(e.valueOf())}
-                  />
-                  <TextInput
-                    style={styles.inputStyles}
-                    placeholder="First name"
-                    value={firstName}
-                    onChangeText={e => setFirstName(e.valueOf())}
-                  />
-                  <TextInput
-                    style={styles.inputStyles}
-                    placeholder="Last name"
-                    value={lastName}
-                    onChangeText={e => setLastName(e.valueOf())}
-                  />
+                <View style={styles.contentStyles}>
+                  <View style={styles.inputsStyles}>
+                    <TextInput
+                      style={styles.inputStyles}
+                      placeholder="Email"
+                      value={email}
+                      onChangeText={e => setEmail(e.valueOf())}
+                    />
+                    <TextInput
+                      style={styles.inputStyles}
+                      placeholder="Password"
+                      value={password}
+                      secureTextEntry={true}
+                      onChangeText={e => setPassword(e.valueOf())}
+                    />
+                    <TextInput
+                      style={styles.inputStyles}
+                      placeholder="First name"
+                      value={firstName}
+                      onChangeText={e => setFirstName(e.valueOf())}
+                    />
+                    <TextInput
+                      style={styles.inputStyles}
+                      placeholder="Last name"
+                      value={lastName}
+                      onChangeText={e => setLastName(e.valueOf())}
+                    />
+                  </View>
                 </View>
                 <View style={{padding: 20, gap: 10}}>
                   <TouchableOpacity
-                    style={styles.buttonStyles}
+                    style={{
+                      ...styles.buttonStyles,
+                      backgroundColor: '#AFE1AF',
+                    }}
                     onPress={handleCreateAccount}>
-                    <Text style={styles.buttonTextStyles}>Create Account</Text>
+                    <Text
+                      style={{...styles.buttonTextStyles, color: '#03c04a'}}>
+                      Create Account
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={{
@@ -146,7 +155,10 @@ const Signup = ({navigation}) => {
 const styles = StyleSheet.create({
   containerStyle: {
     flex: 1,
-    backgroundColor: 'white',
+  },
+  contentStyles: {
+    padding: 20,
+    gap: 50,
   },
   headerTextStyles: {
     fontSize: 30,
@@ -158,24 +170,26 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#de3623',
   },
+  buttonsStyles: {
+    backgroundColor: 'white',
+    gap: 10,
+  },
   buttonStyles: {
     paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: 'pink',
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: '#de3623',
-    borderWidth: 1,
   },
   inputsStyles: {
     backgroundColor: 'white',
-    padding: 20,
+    gap: 20,
   },
   inputStyles: {
-    paddingVertical: 10,
     borderBottomColor: 'gainsboro',
     borderBottomWidth: 1,
-    fontSize: 15,
+    fontSize: 20,
+    padding: 10,
     backgroundColor: 'white',
   },
   errorStyle: {

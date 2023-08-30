@@ -27,18 +27,19 @@ const Popup = ({
           {prompt && (
             <View style={{gap: 10, flexDirection: 'row'}}>
               <TouchableOpacity
-                style={{...styles.buttonStyles}}
+                style={{...styles.buttonStyles, backgroundColor: '#AFE1AF'}}
                 onPress={handleRouteOverride}>
-                <Text style={styles.buttonTextStyles}>Override</Text>
+                <Text style={{...styles.buttonTextStyles, color: '#03c04a'}}>
+                  Override
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{
                   ...styles.buttonStyles,
-                  backgroundColor: 'black',
-                  borderColor: 'black',
+                  backgroundColor: 'pink',
                 }}
                 onPress={closePopup}>
-                <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+                <Text style={{...styles.buttonTextStyles, color: '#de3623'}}>
                   Cancel
                 </Text>
               </TouchableOpacity>
@@ -108,7 +109,8 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     width: width - 40,
     borderRadius: 20,
-    padding: 20,
+    paddingHorizontal: 30,
+    paddingVertical: 20,
     elevation: 5,
     fontSize: 20,
     color: 'white',
@@ -130,8 +132,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'pink',
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: '#de3623',
-    borderWidth: 1,
     width: 100,
   },
 });

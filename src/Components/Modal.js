@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   Keyboard,
   FlatList,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import {
   ScrollView,
@@ -32,6 +33,8 @@ const Modal = ({
   const [selectedContacts, setSelectedContacts] = useState([]);
   const [customNumber, setCustomNumber] = useState('');
   const [formattedContacts, setFormattedContacts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredContacts, setFilteredContacts] = useState(list);
 
   function addToSelected(number) {
     const alreadyAdded = subscribers.filter(sub => sub.number == number);
@@ -49,7 +52,6 @@ const Modal = ({
   }
 
   function addCustomNumberToContacts() {
-    //removing the repeat number and adding the new one
     const alreadyAdded = allContacts.filter(
       contact => contact?.phoneNumbers[0]?.number === customNumber,
     );
@@ -74,7 +76,7 @@ const Modal = ({
 
   useEffect(() => {
     setFormattedContacts(() => {
-      return allContacts.reduce((total, contact) => {
+      return filteredContacts.reduce((total, contact) => {
         if (
           contact.phoneNumbers.length > 0 &&
           contact.phoneNumbers[0].number.length > 6
@@ -106,15 +108,47 @@ const Modal = ({
         }
       }, []);
     });
+    sortContacts();
     setCustomNumber('');
-  }, [subscribers, allContacts, state, selectedContacts]);
+  }, [subscribers, allContacts, state, selectedContacts, filteredContacts]);
+
+  function sortContacts() {
+    filteredContacts.sort(function (a, b) {
+      const textA = a.givenName?.toUpperCase();
+      const textB = b.givenName?.toUpperCase();
+      return textA < textB ? -1 : textA > textB ? 1 : 0;
+    });
+  }
 
   useEffect(() => {
     setAllContacts(list);
+    setFilteredContacts(list);
   }, [list]);
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (searchQuery.trim() != '') {
+        const results = allContacts.filter(contact => {
+          return (
+            contact?.givenName
+              ?.toLowerCase()
+              .indexOf(searchQuery.toLowerCase()) !== -1
+          );
+        });
+        setFilteredContacts(results);
+      } else if (allContacts.length > 0) {
+        setFilteredContacts(allContacts);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={{
+        ...styles.container,
+      }}>
       <View
         style={{
           ...styles.content,
@@ -122,13 +156,16 @@ const Modal = ({
         }}>
         {list <= 0 && <Text>Contacts not available</Text>}
         <ScrollView>
+          <TextInput
+            style={{...styles.inputStyles, flex: 1, textAlign: 'center'}}
+            placeholder="Search contacts"
+            value={searchQuery}
+            onChangeText={e => {
+              setSearchQuery(e.valueOf());
+            }}
+          />
           <FlatList
             scrollEnabled={false}
-            ListHeaderComponent={() => (
-              <Text style={{flex: 1, textAlign: 'center', marginVertical: 10}}>
-                Contacts
-              </Text>
-            )}
             data={formattedContacts}
             renderItem={({item}) => (
               <Contact
@@ -143,7 +180,7 @@ const Modal = ({
             keyExtractor={item => item.key}
             ListFooterComponent={() => (
               <Text style={{flex: 1, textAlign: 'center', marginVertical: 10}}>
-                Total contacts: {JSON.stringify(formattedContacts.length)}
+                Results: {JSON.stringify(formattedContacts.length)}
               </Text>
             )}
           />
@@ -174,7 +211,7 @@ const Modal = ({
                 customNumber.trim().length >= 10
                   ? selectedContacts.length + subscribers.length >= 5
                     ? 'gainsboro'
-                    : '#1e90ff'
+                    : 'black'
                   : 'gainsboro',
             }}
             disabled={
@@ -191,36 +228,35 @@ const Modal = ({
         <View
           style={{
             flexDirection: 'row',
-            width: width - 100,
-            height: 50,
-            justifyContent: 'space-between',
+            gap: 10,
             marginTop: 20,
+            width: width - 100,
+            justifyContent: 'space-evenly',
           }}>
           <TouchableOpacity
-            style={styles.buttonStyles}
+            style={{...styles.buttonStyles, backgroundColor: '#AFE1AF'}}
             onPress={() => {
-              setSelectedContacts([]);
               onClick(selectedContacts);
+              setSelectedContacts([]);
+              closeModal();
             }}>
-            <Text style={styles.buttonTextStyles}>Save</Text>
+            <Text style={{...styles.buttonTextStyles, color: '#03c04a'}}>
+              Save
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={{
               ...styles.buttonStyles,
-              backgroundColor: 'black',
-              borderColor: 'black',
             }}
             onPress={() => {
               setSelectedContacts([]);
               closeModal();
             }}>
-            <Text style={{...styles.buttonTextStyles, color: 'white'}}>
-              Close
-            </Text>
+            <Text style={{...styles.buttonTextStyles}}>Close</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -230,7 +266,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: width,
     height: height,
-    backgroundColor: 'rgba(0,0,0, .2)',
   },
   content: {
     flex: 1,
@@ -243,6 +278,11 @@ const styles = StyleSheet.create({
     margin: 20,
     padding: 20,
     maxHeight: height - 240,
+    shadowColor: 'gainsboro',
+    shadowOpacity: 1,
+    shadowRadius: 5,
+    shadowOffset: {x: 1, y: 3},
+    backgroundColor: 'none',
   },
   header: {
     textAlign: 'center',
@@ -278,15 +318,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   buttonStyles: {
-    flex: 1,
     paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: 'pink',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderColor: '#de3623',
-    borderWidth: 1,
-    width: Platform.OS === 'android' ? width - 240 : width - 250,
+    height: 50,
+    width: 100,
   },
 });
 

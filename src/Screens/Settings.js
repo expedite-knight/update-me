@@ -87,6 +87,7 @@ const Settings = ({navigation}) => {
   }, [jwt]);
 
   const handleUpdateProfile = () => {
+    setLoading(true);
     fetch(`${APP_URL}/api/v1/auth/update`, {
       method: 'PUT',
       headers: {
@@ -104,6 +105,7 @@ const Settings = ({navigation}) => {
     })
       .then(res => res.json())
       .then(async data => {
+        setLoading(false);
         if (data.status === 204) {
           openPopup('Account updated successfully', '#1e90ff');
           setTimeout(() => {
@@ -205,11 +207,11 @@ const Settings = ({navigation}) => {
                   <TouchableOpacity
                     style={{
                       ...styles.buttonStyles,
-                      backgroundColor: 'black',
-                      borderColor: 'black',
+                      backgroundColor: 'pink',
                     }}
                     onPress={handleDeleteAccount}>
-                    <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+                    <Text
+                      style={{...styles.buttonTextStyles, color: '#de3623'}}>
                       Delete account
                     </Text>
                   </TouchableOpacity>
@@ -243,16 +245,14 @@ const styles = StyleSheet.create({
   buttonTextStyles: {
     fontSize: 20,
     fontWeight: '500',
-    color: '#de3623',
+    color: '#03c04a',
   },
   buttonStyles: {
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: 'pink',
+    backgroundColor: '#AFE1AF',
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: '#de3623',
-    borderWidth: 1,
   },
   inputsStyles: {
     marginTop: 50,

@@ -21,15 +21,20 @@ import {UserContext} from '../../UserContext';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import uuid from 'react-uuid';
 import {SelectList} from 'react-native-dropdown-select-list';
-import DropDownPicker from 'react-native-dropdown-picker';
 import Popup from '../Components/Popup';
 import Modal from '../Components/Modal';
 import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
+import Contacts from 'react-native-contacts';
+import {
+  PERMISSIONS,
+  request,
+  check,
+  openSettings,
+} from 'react-native-permissions';
 
 const {width, height} = Dimensions.get('screen');
 
-//we should cache the contacts in the secure store so we can access them easier
 const CreateRoute = ({navigation}) => {
   const [errorPopupY, setErrorPopupY] = useState(
     new Animated.Value(-height * 2),
@@ -53,8 +58,59 @@ const CreateRoute = ({navigation}) => {
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    handleFetchContacts();
+    const hideKeyboard = Keyboard.addListener('keyboardDidHide', () => {
+      scrollRef.current?.scrollTo({
+        y: 0,
+        animated: true,
+      });
+    });
+
+    return () => {
+      hideKeyboard.remove();
+    };
   }, []);
+
+  useEffect(() => {
+    handleFetchContacts();
+    fetchSession();
+  }, []);
+
+  async function fetchSession() {
+    try {
+      const session = await EncryptedStorage.getItem('createRouteSession');
+
+      if (session !== undefined) {
+        setDestination(JSON.parse(session).destination);
+        setName(JSON.parse(session).name);
+        setQuickRoute(JSON.parse(session).quickRoute);
+        setDeliveryMode(JSON.parse(session).deliveryMode);
+        setInterval(JSON.parse(session).interval);
+        setInter;
+        if (JSON.parse(session).subscribers)
+          setSubscribers(JSON.parse(session).subscribers);
+      }
+    } catch (error) {
+      // There was an error on the native side
+    }
+  }
+
+  useEffect(() => {
+    try {
+      EncryptedStorage.setItem(
+        'createRouteSession',
+        JSON.stringify({
+          destination: destination,
+          name: name,
+          quickRoute: quickRoute,
+          deliveryMode: deliveryMode,
+          subscribers: subscribers,
+          interval: interval,
+        }),
+      );
+    } catch (error) {
+      console.log('could not store');
+    }
+  }, [destination, name, quickRoute, deliveryMode, subscribers, interval]);
 
   useEffect(() => {
     setModalElement(() => (
@@ -97,23 +153,34 @@ const CreateRoute = ({navigation}) => {
   };
 
   async function handleFetchContacts() {
-    if (RNSecureStorage) {
-      RNSecureStorage.get('contacts')
-        .then(data => {
-          setContacts(JSON.parse(data));
-          setLoading(false);
-        })
-        .catch(err => {
-          console.log(err);
-        });
+    if (Platform.OS === 'ios') {
+      request(PERMISSIONS.IOS.CONTACTS).then(result => {
+        if (result === 'granted') {
+          Contacts.getAll()
+            .then(data => {
+              setContacts(data);
+              setLoading(false);
+            })
+            .catch(err => {
+              console.log('Unable to get contacts: ', err);
+              setLoading(false);
+            });
+        }
+      });
     } else {
-      try {
-        const data = await EncryptedStorage.getItem('contacts');
-        setContacts(JSON.parse(data));
-        setLoading(false);
-      } catch (error) {
-        console.log('Err retrieving contacts: ', error);
-      }
+      request(PERMISSIONS.ANDROID.READ_CONTACTS).then(result => {
+        if (result === 'granted') {
+          Contacts.getAll()
+            .then(data => {
+              setContacts(data);
+              setLoading(false);
+            })
+            .catch(err => {
+              console.log('Unable to get contacts: ', err);
+              setLoading(false);
+            });
+        }
+      });
     }
   }
 
@@ -131,8 +198,6 @@ const CreateRoute = ({navigation}) => {
         ];
       });
     });
-
-    closePopup();
   };
 
   const removeSubscriber = index => {
@@ -166,6 +231,12 @@ const CreateRoute = ({navigation}) => {
       .then(res => res.json())
       .then(async data => {
         if (data.status === 201) {
+          setDeliveryMode(false);
+          setQuickRoute(false);
+          setName('');
+          setDestination('');
+          setInterval('');
+          setSubscribers([]);
           navigation.navigate('Routes', {
             update: uuid(),
             createdRoute: 'success',
@@ -210,6 +281,7 @@ const CreateRoute = ({navigation}) => {
             style={{
               transform: [{translateY: popupY}],
               zIndex: 1,
+              minHeight: modalState ? height : null,
             }}>
             {modalElement}
           </Animated.View>
@@ -227,155 +299,160 @@ const CreateRoute = ({navigation}) => {
               {popupText}
             </Popup>
           </Animated.View>
-          <ScrollView automaticallyAdjustKeyboardInsets={true}>
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-              <>
-                <Text style={styles.headerTextStyles}>New Route</Text>
+          <>
+            <Text style={styles.headerTextStyles}>New Route</Text>
+            <View
+              style={{
+                ...styles.inputsStyles,
+                marginTop: 50,
+                marginHorizontal: 20,
+              }}>
+              <TextInput
+                style={styles.inputStyles}
+                placeholder="Route name"
+                value={name}
+                onChangeText={e => setName(e.valueOf())}
+              />
+              <TextInput
+                style={styles.inputStyles}
+                placeholder="Destination address"
+                value={destination}
+                onChangeText={e => setDestination(e.valueOf())}
+              />
+              {deliveryMode ? (
+                <Text
+                  style={{
+                    fontSize: 20,
+                    padding: 12,
+                    paddingHorizontal: 22,
+                    borderWidth: 1,
+                    borderRadius: 10,
+                    borderColor: 'gainsboro',
+                    color: 'gainsboro',
+                  }}>
+                  Delivery Mode
+                </Text>
+              ) : (
+                <SelectList
+                  setSelected={val => setInterval(val)}
+                  data={data}
+                  save="value"
+                  placeholder={interval ? interval : 'Interval'}
+                  searchPlaceholder="Interval"
+                  dropdownTextStyles={{fontSize: 16}}
+                  inputStyles={{
+                    fontSize: 20,
+                  }}
+                />
+              )}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-evenly',
+                  marginVertical: 10,
+                }}>
                 <View
                   style={{
-                    ...styles.inputsStyles,
-                    marginTop: 50,
-                    marginHorizontal: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: Platform.OS === 'ios' ? 10 : 0,
                   }}>
-                  <TextInput
-                    style={styles.inputStyles}
-                    placeholder="Route name"
-                    value={name}
-                    onChangeText={e => setName(e.valueOf())}
+                  <CheckBox
+                    disabled={false}
+                    value={quickRoute}
+                    onValueChange={value => setQuickRoute(value)}
                   />
-                  <TextInput
-                    style={styles.inputStyles}
-                    placeholder="Destination address"
-                    value={destination}
-                    onChangeText={e => setDestination(e.valueOf())}
-                  />
-                  {deliveryMode ? (
-                    <Text
-                      style={{
-                        fontSize: 20,
-                        padding: 12,
-                        paddingHorizontal: 22,
-                        borderWidth: 1,
-                        borderRadius: 10,
-                        borderColor: 'gainsboro',
-                        color: 'gainsboro',
-                      }}>
-                      Delivery Mode
-                    </Text>
-                  ) : (
-                    <SelectList
-                      setSelected={val => setInterval(val)}
-                      data={data}
-                      save="value"
-                      placeholder={'Interval'}
-                      searchPlaceholder="Interval"
-                      dropdownTextStyles={{fontSize: 16}}
-                      inputStyles={{
-                        fontSize: 20,
-                      }}
-                    />
-                  )}
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-evenly',
-                      marginVertical: 10,
-                    }}>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: Platform.OS === 'ios' ? 10 : 0,
-                      }}>
-                      <CheckBox
-                        disabled={true}
-                        value={quickRoute}
-                        onValueChange={value => setQuickRoute(value)}
-                      />
-                      <Text style={{fontSize: 15}}>Quick Route</Text>
-                    </View>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: Platform.OS === 'ios' ? 10 : 0,
-                      }}>
-                      <CheckBox
-                        disabled={false}
-                        value={deliveryMode}
-                        onValueChange={value => setDeliveryMode(value)}
-                      />
-                      <Text style={{fontSize: 15}}>Delivery Mode</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    style={{
-                      ...styles.buttonStyles,
-                      backgroundColor:
-                        subscribers.length >= 5
-                          ? 'rgba(0, 0, 0, .2)'
-                          : '#1e90ff',
-                      borderWidth: 1,
-                      borderColor: '#1e90ff',
-                    }}
-                    onPress={openPopup}
-                    disabled={subscribers.length >= 5 ? true : false}>
-                    <Text style={{...styles.buttonTextStyles, color: 'white'}}>
-                      Add subscribers
-                    </Text>
-                  </TouchableOpacity>
-                  {subscribers.length >= 1 ? (
-                    subscribers.map((value, index) => (
-                      <View key={index} index={index} style={styles.subscriber}>
-                        <View
-                          style={{
-                            flexDirection: 'row',
-                            gap: 10,
-                            alignItems: 'center',
-                          }}>
-                          <Text
-                            style={{
-                              fontSize: 20,
-                              color: value.new ? '#1bab05' : 'black',
-                            }}>
-                            {value.number}
-                          </Text>
-                          {!value.verified ? (
-                            <Icon
-                              name="alert-circle-outline"
-                              size={25}
-                              color={'#de3623'}
-                            />
-                          ) : null}
-                        </View>
-                        <TouchableOpacity
-                          style={styles.deleteButton}
-                          onPress={() => removeSubscriber(index)}>
-                          <Icon name="trash" size={25} color={'#de3623'} />
-                        </TouchableOpacity>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={{textAlign: 'center'}}>
-                      No subscribers yet
-                    </Text>
-                  )}
+                  <Text style={{fontSize: 15}}>Quick Route</Text>
                 </View>
                 <View
-                  style={{gap: 10, marginVertical: 50, marginHorizontal: 20}}>
-                  <TouchableOpacity
-                    style={styles.buttonStyles}
-                    onPress={handleCreateRoute}>
-                    {!loading ? (
-                      <Text style={styles.buttonTextStyles}>Create</Text>
-                    ) : (
-                      <ActivityIndicator size="small" color="black" />
-                    )}
-                  </TouchableOpacity>
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: Platform.OS === 'ios' ? 10 : 0,
+                  }}>
+                  <CheckBox
+                    disabled={false}
+                    value={deliveryMode}
+                    onValueChange={value => setDeliveryMode(value)}
+                  />
+                  <Text style={{fontSize: 15}}>Delivery Mode</Text>
                 </View>
-              </>
-            </TouchableWithoutFeedback>
-          </ScrollView>
+              </View>
+              <TouchableOpacity
+                style={{
+                  ...styles.buttonStyles,
+                  backgroundColor:
+                    subscribers.length >= 5 ? 'rgba(0, 0, 0, .2)' : 'black',
+                }}
+                onPress={openPopup}
+                disabled={subscribers.length >= 5 ? true : false}>
+                <Text style={{...styles.buttonTextStyles, color: 'white'}}>
+                  Add subscribers
+                </Text>
+              </TouchableOpacity>
+              {subscribers.length >= 1 ? (
+                subscribers.map((value, index) => (
+                  <View key={index} index={index} style={styles.subscriber}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        gap: 10,
+                        alignItems: 'center',
+                      }}>
+                      <Text
+                        style={{
+                          fontSize: 20,
+                          color: value.new ? '#1bab05' : 'black',
+                        }}>
+                        {value.number}
+                      </Text>
+                      {!value.verified ? (
+                        <Icon
+                          name="alert-circle-outline"
+                          size={25}
+                          color={'#de3623'}
+                        />
+                      ) : null}
+                    </View>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => {
+                        removeSubscriber(index);
+                      }}>
+                      <Icon name="trash" size={25} color={'#de3623'} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              ) : (
+                <Text style={{textAlign: 'center'}}>No subscribers yet</Text>
+              )}
+            </View>
+            <View style={{gap: 10, marginVertical: 50, marginHorizontal: 20}}>
+              <TouchableOpacity
+                style={styles.buttonStyles}
+                onPress={handleCreateRoute}>
+                {!loading ? (
+                  <Text style={styles.buttonTextStyles}>Create</Text>
+                ) : (
+                  <ActivityIndicator size="small" color="black" />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{...styles.buttonStyles, backgroundColor: 'pink'}}
+                onPress={() => {
+                  setName('');
+                  setDeliveryMode(false);
+                  setDestination('');
+                  setQuickRoute(false);
+                  setSubscribers([]);
+                  setInterval('');
+                }}>
+                <Text style={{...styles.buttonTextStyles, color: '#DC143C'}}>
+                  Reset
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
         </>
       ) : (
         <View
@@ -408,16 +485,14 @@ const styles = StyleSheet.create({
   buttonTextStyles: {
     fontSize: 20,
     fontWeight: '500',
-    color: '#de3623',
+    color: '#03c04a',
   },
   buttonStyles: {
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: 'pink',
+    backgroundColor: '#AFE1AF',
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: '#de3623',
-    borderWidth: 1,
   },
   inputsStyles: {
     backgroundColor: 'white',

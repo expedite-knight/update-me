@@ -14,86 +14,98 @@ import Routes from './src/Screens/Routes';
 import {UserContext} from './UserContext';
 import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
-import {STORE_KEY, APP_URL, DEV_URL} from '@env';
+import {JWT_KEY, REFRESH_KEY, APP_URL, DEV_URL} from '@env';
 import RouteDetails from './src/Screens/RouteDetails';
 import CreateRoute from './src/Screens/CreateRoute';
 import Signup from './src/Screens/Signup';
 import Settings from './src/Screens/Settings';
 import Ionicon from 'react-native-vector-icons/Ionicons';
+import {
+  CommonActions,
+  StackActions,
+  NavigationAction,
+} from '@react-navigation/native';
 
 function App() {
-  const [jwt, setJwt] = useState();
+  const [jwt, setJwt] = useState(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const navTheme = DefaultTheme;
   navTheme.colors.background = 'white';
 
-  async function handleFetchToken() {
+  async function handleFetchToken(type) {
+    let storedToken = '';
+
     if (RNSecureStorage) {
-      RNSecureStorage.get(STORE_KEY)
+      RNSecureStorage.get(type === 'jwt' ? JWT_KEY : REFRESH_KEY)
         .then(value => {
           if (value !== '') {
             setJwt(value);
+            storedToken = value;
           } else {
-            setJwt(null);
+            setJwt('');
           }
         })
         .catch(err => {
           console.log(err);
-          setJwt(null);
+          setJwt('');
         });
     } else {
       try {
-        const token = await EncryptedStorage.getItem(STORE_KEY);
+        const token = await EncryptedStorage.getItem(
+          type === 'jwt' ? JWT_KEY : REFRESH_KEY,
+        );
         if (token || token !== '') {
           setJwt(token);
+          storedToken = token;
         } else {
-          setJwt(null);
+          setJwt('');
         }
       } catch (error) {
         console.log('ERR retrieving token: ', error);
       }
     }
+    return storedToken;
   }
 
-  async function handleStoreToken(token) {
+  async function handleStoreToken(token, type) {
     if (RNSecureStorage) {
-      RNSecureStorage.set(STORE_KEY, token, {
+      RNSecureStorage.set(type === 'jwt' ? JWT_KEY : REFRESH_KEY, token, {
         accessible: ACCESSIBLE.WHEN_UNLOCKED,
       }).then(
         res => {
-          setJwt(token);
+          if (type === 'jwt') {
+            setJwt(token);
+          }
+          return token;
         },
         err => {
-          console.log(err);
+          console.log('ERR Storing token: ', err);
         },
       );
     } else {
       try {
-        await EncryptedStorage.setItem(STORE_KEY, token);
-        setJwt(token);
+        await EncryptedStorage.setItem(
+          type === 'jwt' ? JWT_KEY : REFRESH_KEY,
+          token,
+        );
+        if (type === 'jwt') {
+          setJwt(token);
+        }
+        return token;
       } catch (error) {
         console.log('ERR Storing token: ', error);
       }
     }
   }
 
-  const handleLogout = async () => {
-    try {
-      await EncryptedStorage.removeItem(STORE_KEY);
-      setJwt('');
-    } catch (error) {
-      console.log('User not logged in');
-    }
-  };
-
   useEffect(() => {
     const handleAuth = async () => {
-      await handleFetchToken();
+      const storedToken = await handleFetchToken('jwt');
       fetch(`${APP_URL}/api/v1/auth/verify`, {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
-          Authorization: jwt,
+          Authorization: storedToken,
           'User-Agent': 'any-name',
         },
         mode: 'cors',
@@ -103,7 +115,8 @@ function App() {
           if (data.status === 200) {
             setIsAuthorized(true);
           } else {
-            handleStoreToken('');
+            handleStoreToken('', 'jwt');
+            await verifyRefreshToken();
           }
         })
         .catch(error => {
@@ -113,6 +126,40 @@ function App() {
 
     handleAuth();
   }, []);
+
+  async function verifyRefreshToken() {
+    console.log('Old token has expired, getting new token');
+    const refreshToken = await handleFetchToken('refresh');
+    let replacementToken = null;
+
+    await fetch(`${APP_URL}/api/v1/auth/verify/refresh`, {
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: refreshToken,
+        'User-Agent': 'any-name',
+      },
+      mode: 'cors',
+    })
+      .then(res => res.json())
+      .then(async data => {
+        // console.log('Refresh res: ', data.body);
+        if (data.status === 200) {
+          setIsAuthorized(true);
+          setJwt(data.body.jwtToken);
+          await handleStoreToken(data.body.jwtToken, 'jwt');
+          await handleStoreToken(data.body.refreshToken, 'refresh');
+          replacementToken = data.body.jwtToken;
+        } else {
+          await handleStoreToken('', 'refresh');
+          setJwt('');
+        }
+      })
+      .catch(error => {
+        console.log('ERROR:', error[0]);
+      });
+    return replacementToken;
+  }
 
   const config = {
     animation: 'spring',
@@ -153,6 +200,7 @@ function App() {
             ),
             headerTitleAlign: 'center',
           }}
+          initialParams={{createdRoute: '', updatedRoute: '', deletedRoute: ''}}
         />
         <RouteStack.Screen
           name="RouteDetails"
@@ -208,7 +256,9 @@ function App() {
       <AuthStack.Navigator>
         <AuthStack.Screen
           name="Login"
-          component={Login}
+          children={({navigation, route}) => (
+            <Login isAuthorized={isAuthorized} navigation={navigation} />
+          )}
           options={{
             headerTitle: '',
             headerStyle: {
@@ -221,11 +271,21 @@ function App() {
           name="Signup"
           component={Signup}
           options={{
-            headerBackTitle: 'back',
-            headerTitle: '',
+            headerTitle: () => (
+              <Image
+                source={require('./src/Assets/ek_logo_trim.jpg')}
+                style={{width: 80, height: 30}}
+              />
+            ),
+            headerBackTitle: ' ',
+            headerTitleAlign: 'center',
+            headerBackImage: () => (
+              <Ionicon name="chevron-back-outline" size={35} color="black" />
+            ),
             headerStyle: {
               shadowColor: 'transparent', // this covers iOS
               elevation: 0, // this covers Android
+              backgroundColor: 'white',
             },
           }}
         />
@@ -270,11 +330,17 @@ function App() {
   return (
     <SafeAreaProvider>
       <UserContext.Provider
-        value={[jwt, setJwt, handleStoreToken, handleFetchToken]}>
+        value={[
+          jwt,
+          setJwt,
+          handleStoreToken,
+          handleFetchToken,
+          verifyRefreshToken,
+        ]}>
         <NavigationContainer>
           <Tab.Navigator
             initialRouteName={'Login'}
-            screenOptions={({route}) => ({
+            screenOptions={({route, navigation}) => ({
               tabBarIcon: ({focused, color, size}) => {
                 let iconName;
                 let rn = route.name;
@@ -306,7 +372,7 @@ function App() {
                     );
                 }
               },
-              tabBarActiveTintColor: 'pink',
+              tabBarActiveTintColor: '#DC143C',
               tabBarInactiveTintColor: 'gray',
               tabBarLabelStyle: {
                 paddingBottom: 10,
@@ -319,14 +385,21 @@ function App() {
               },
               tabBarHideOnKeyboard: true,
               headerShown: false,
-              tabBarLabel: Platform.OS === 'ios' ? '' : route.name,
+              tabBarLabel:
+                Platform.OS === 'ios'
+                  ? ''
+                  : route.name.toLowerCase() === 'login'
+                  ? 'Logout'
+                  : route.name,
             })}>
             <Tab.Screen
               name="Login"
               component={AuthStackScreens}
               options={{tabBarStyle: {display: 'none'}}}
-              listeners={{
-                tabPress: e => {
+              listeners={({navigation, route}) => ({
+                tabPress: async e => {
+                  //This is the logout logic, should really hit the
+                  //logout user api url but it works
                   fetch(`${APP_URL}/api/v1/routes/deactivate/current`, {
                     method: 'POST',
                     credentials: 'include',
@@ -340,7 +413,7 @@ function App() {
                   })
                     .then(res => res.json())
                     .then(async data => {
-                      console.log('RES: ', data);
+                      console.log('logged out successfully');
                     })
                     .catch(error => {
                       console.log(
@@ -348,11 +421,51 @@ function App() {
                         error,
                       );
                     });
-                  console.log('Logging out...');
+
+                  //resetting nav state when you logout
+                  const state = navigation.dangerouslyGetState();
+                  if (state) {
+                    const nonTargetTabs = state.routes.filter(
+                      r => r.key !== e.target,
+                    );
+
+                    nonTargetTabs.forEach(tab => {
+                      const tabName = tab?.name;
+                      const stackKey = tab?.state?.key;
+
+                      if (stackKey && tabName === 'Routes') {
+                        navigation.dispatch({
+                          ...StackActions.popToTop(),
+                          target: stackKey,
+                        });
+                      }
+                    });
+                  }
+
+                  if (RNSecureStorage) {
+                    RNSecureStorage.set('creds', '', {
+                      accessible: ACCESSIBLE.WHEN_UNLOCKED,
+                    }).then(
+                      res => {
+                        console.log('Reset creds successfully');
+                      },
+                      err => {
+                        console.log('ERR Storing token: ', err);
+                      },
+                    );
+                  } else {
+                    try {
+                      await EncryptedStorage.setItem('creds', '');
+                      console.log('Reset creds successfully');
+                    } catch (error) {
+                      console.log('ERR Storing token: ', error);
+                    }
+                  }
+
                   setIsAuthorized(false);
-                  handleStoreToken('');
+                  await handleStoreToken('', 'jwt');
                 },
-              }}
+              })}
             />
             <Tab.Screen name="Routes" component={RouteStackScreens} />
             <Tab.Screen name="Settings" component={SettingsStackScreens} />

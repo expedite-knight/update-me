@@ -17,19 +17,12 @@ import {
 import {UserContext} from '../../UserContext';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import {TextInput} from 'react-native-gesture-handler';
-import {
-  PERMISSIONS,
-  request,
-  check,
-  openSettings,
-} from 'react-native-permissions';
-import Contacts from 'react-native-contacts';
 import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
 
 const {width, height} = Dimensions.get('screen');
 
-const Login = ({navigation}) => {
+const Login = ({navigation, isAuthorized}) => {
   const [jwt, setJwt, handleStoreToken] = useContext(UserContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,10 +45,14 @@ const Login = ({navigation}) => {
       .then(res => res.json())
       .then(async data => {
         if (data.status === 200) {
-          await handleStoreToken(data.body.jwtToken);
+          await handleStoreToken(data.body.jwtToken, 'jwt');
+          await handleStoreToken(data.body.refreshToken, 'refresh');
           setJwt(data.body.jwtToken);
           setError('');
-          handleFetchAndStoreContacts();
+
+          await handleStoreCredentials();
+
+          navigation.navigate('Routes');
         } else {
           setError('Incorrect email or password');
           setLoading(false);
@@ -68,52 +65,64 @@ const Login = ({navigation}) => {
       });
   }
 
-  function handleFetchAndStoreContacts() {
-    if (Platform.OS === 'ios') {
-      request(PERMISSIONS.IOS.CONTACTS).then(result => {
-        if (result === 'granted') {
-          Contacts.getAll()
-            .then(data => handleStoreContacts(data))
-            .catch(err => {
-              console.log('Unable to get contacts: ', err);
-              setLoading(false);
-            });
-        }
-      });
+  useEffect(() => {
+    if (isAuthorized && navigation) navigation.navigate('Routes');
+    handleFetchCredentials();
+  }, [isAuthorized, navigation]);
+
+  async function handleFetchCredentials() {
+    let storedCreds = '';
+
+    if (RNSecureStorage) {
+      RNSecureStorage.get('creds')
+        .then(value => {
+          if (value && value !== '') {
+            const user = JSON.parse(value);
+            setEmail(user.email);
+            setPassword(user.password);
+            storedCreds = value;
+          }
+        })
+        .catch(err => {
+          console.log('No current creds');
+        });
     } else {
-      request(PERMISSIONS.ANDROID.READ_CONTACTS).then(result => {
-        if (result === 'granted') {
-          Contacts.getAll()
-            .then(data => handleStoreContacts(data))
-            .catch(err => {
-              console.log('Unable to get contacts: ', err);
-              setLoading(false);
-            });
+      try {
+        const value = await EncryptedStorage.getItem('creds');
+        if (value && value !== '') {
+          const user = JSON.parse(value);
+          setEmail(user.email);
+          setPassword(user.password);
+          storedCreds = value;
         }
-      });
+      } catch (error) {
+        console.log('No current creds');
+      }
     }
+    return storedCreds;
   }
 
-  function handleStoreContacts(contacts) {
+  async function handleStoreCredentials() {
     if (RNSecureStorage) {
-      RNSecureStorage.set('contacts', JSON.stringify(contacts), {
+      RNSecureStorage.set('creds', JSON.stringify({email, password}), {
         accessible: ACCESSIBLE.WHEN_UNLOCKED,
       }).then(
         res => {
-          console.log('Stored contacts successfully');
-          navigation.navigate('Routes');
+          console.log('Stored creds successfully');
         },
         err => {
-          console.log('Err storing contacts: ', err);
+          console.log('ERR Storing token: ', err);
         },
       );
     } else {
       try {
-        EncryptedStorage.setItem('contacts', JSON.stringify(contacts));
-        console.log('Stored contacts successfully');
-        navigation.navigate('Routes');
+        await EncryptedStorage.setItem(
+          'creds',
+          JSON.stringify({email, password}),
+        );
+        console.log('Stored creds successfully');
       } catch (error) {
-        console.log('Err Storing contacts: ', error);
+        console.log('ERR Storing token: ', error);
       }
     }
   }
@@ -149,15 +158,20 @@ const Login = ({navigation}) => {
                   </View>
                   <View style={styles.buttonsStyles}>
                     <TouchableOpacity
-                      style={styles.buttonStyles}
+                      style={{
+                        ...styles.buttonStyles,
+                        backgroundColor: '#AFE1AF',
+                      }}
                       onPress={handleLogin}>
-                      <Text style={styles.buttonTextStyles}>Login</Text>
+                      <Text
+                        style={{...styles.buttonTextStyles, color: '#03c04a'}}>
+                        Login
+                      </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={{
                         ...styles.buttonStyles,
                         backgroundColor: 'black',
-                        borderColor: 'black',
                       }}
                       onPress={() => navigation.push('Signup')}>
                       <Text
@@ -211,8 +225,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'pink',
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: '#de3623',
-    borderWidth: 1,
   },
   inputsStyles: {
     backgroundColor: 'white',
