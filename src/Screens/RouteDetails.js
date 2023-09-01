@@ -24,8 +24,6 @@ import uuid from 'react-uuid';
 import {SelectList} from 'react-native-dropdown-select-list';
 import Popup from '../Components/Popup';
 import Modal from '../Components/Modal';
-import RNSecureStorage, {ACCESSIBLE} from 'rn-secure-storage';
-import EncryptedStorage from 'react-native-encrypted-storage';
 import Clipboard from '@react-native-clipboard/clipboard';
 import Geolocation from 'react-native-geolocation-service';
 import {
@@ -81,31 +79,36 @@ const RouteDetails = ({route, navigation}) => {
   }, []);
 
   useEffect(() => {
-    setModalElement(() => (
-      <Modal
-        background={'white'}
-        closeModal={closeModal}
-        onClick={handleAddSubscribers}
-        list={contacts}
-        subscribers={subscribers}
-        state={modalState}>
-        Contacts
-      </Modal>
-    ));
-  }, [subscribers, modalState, contacts]);
+    if (modalState) {
+      setModalElement(() => (
+        <Modal
+          background={'white'}
+          closeModal={closeModal}
+          onClick={handleAddSubscribers}
+          list={contacts}
+          subscribers={subscribers}
+          state={modalState}>
+          Contacts
+        </Modal>
+      ));
+    } else {
+      setTimeout(() => {
+        setModalElement(null);
+      }, 500);
+    }
+  }, [subscribers, contacts, modalState]);
 
   const openModal = () => {
     scrollRef.current?.scrollTo({
       y: 0,
       animated: true,
     });
-    setModalState(prev => !prev);
-
     Animated.timing(modalY, {
       duration: 300,
       toValue: 0,
       useNativeDriver: true,
     }).start();
+    setModalState(true);
   };
 
   const closeModal = () => {
@@ -114,7 +117,7 @@ const RouteDetails = ({route, navigation}) => {
       toValue: -height,
       useNativeDriver: true,
     }).start();
-    setModalState(prev => !prev);
+    setModalState(false);
   };
 
   const openPopup = (text, background, subtext) => {
@@ -209,8 +212,6 @@ const RouteDetails = ({route, navigation}) => {
         ];
       });
     });
-
-    closePopup();
   };
 
   const removeSubscriber = index => {
@@ -653,7 +654,7 @@ const RouteDetails = ({route, navigation}) => {
   ];
 
   return (
-    <ScrollView style={{flex: 1}} scrollEnabled={!modalState} ref={scrollRef}>
+    <ScrollView style={{flex: 1}} scrollEnabled={!false} ref={scrollRef}>
       {!loading ? (
         <>
           <Animated.View
@@ -691,7 +692,9 @@ const RouteDetails = ({route, navigation}) => {
               {popupText}
             </Popup>
           </Animated.View>
-          <ScrollView automaticallyAdjustKeyboardInsets={true}>
+          <ScrollView
+            automaticallyAdjustKeyboardInsets={true}
+            style={{display: modalState ? 'none' : 'flex'}}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <>
                 <TouchableOpacity
@@ -872,7 +875,7 @@ const RouteDetails = ({route, navigation}) => {
                           ...styles.buttonTextStyles,
                           color: active ? 'gray' : '#03c04a',
                         }}>
-                        Update
+                        Save
                       </Text>
                     ) : (
                       <ActivityIndicator size="small" color="black" />
@@ -893,6 +896,9 @@ const RouteDetails = ({route, navigation}) => {
                     </Text>
                   </TouchableOpacity>
                 </View>
+                <Text style={{textAlign: 'center', color: 'gray'}}>
+                  *Changes will not take effect until you save
+                </Text>
               </>
             </TouchableWithoutFeedback>
           </ScrollView>

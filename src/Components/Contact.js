@@ -12,7 +12,13 @@ import {useFocusEffect} from '@react-navigation/native';
 const {width, height} = Dimensions.get('screen');
 
 //contacts update properly now but its so slow, maybe fix it later
-const Contact = ({contact, removeFromSelected, addToSelected, state, init}) => {
+const Contact = ({
+  contact,
+  removeFromSelected,
+  addToSelected,
+  state,
+  selected: init,
+}) => {
   const [number, setNumber] = useState('');
   const [selected, setSelected] = useState(init);
 
@@ -23,7 +29,7 @@ const Contact = ({contact, removeFromSelected, addToSelected, state, init}) => {
     temp = temp.replaceAll('-', '');
     temp = temp.replaceAll(' ', '');
     setNumber(temp);
-  }, []);
+  }, [state]);
 
   return (
     <TouchableOpacity

@@ -427,6 +427,7 @@ const Routes = ({route, navigation, isAuthorized}) => {
       })
         .then(res => res.json())
         .then(async data => {
+          setRoutes([]);
           if (data.status === 200) {
             setRoutes(() => [...data.routes]);
             setRefreshing(false);

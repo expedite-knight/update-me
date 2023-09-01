@@ -1,15 +1,5 @@
-import React, {useState, useEffect, useRef} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Dimensions,
-  Animated,
-  Platform,
-  Keyboard,
-  FlatList,
-  TouchableWithoutFeedback,
-} from 'react-native';
+import React, {useState, useEffect} from 'react';
+import {View, Text, StyleSheet, Dimensions, FlatList} from 'react-native';
 import {
   ScrollView,
   TextInput,
@@ -19,7 +9,6 @@ import Contact from './Contact';
 
 const {width, height} = Dimensions.get('screen');
 
-//use a flatlist for loading the contacts
 const Modal = ({
   children,
   list,
@@ -75,6 +64,7 @@ const Modal = ({
   }
 
   useEffect(() => {
+    sortContacts();
     setFormattedContacts(() => {
       return filteredContacts.reduce((total, contact) => {
         if (
@@ -90,7 +80,7 @@ const Modal = ({
           temp = temp.replace(/[^\d.-]+/g, '');
 
           if (temp.length > 10) temp = temp.substring(1);
-          contact.phoneNumbers[0].number = temp; //?
+          contact.phoneNumbers[0].number = temp;
 
           return [
             ...total,
@@ -100,7 +90,7 @@ const Modal = ({
               removeFromSelected: removeFromSelected,
               key: JSON.stringify(contact),
               state: state,
-              init: customNumber === temp,
+              selected: customNumber === temp,
             },
           ];
         } else {
@@ -108,7 +98,6 @@ const Modal = ({
         }
       }, []);
     });
-    sortContacts();
     setCustomNumber('');
   }, [subscribers, allContacts, state, selectedContacts, filteredContacts]);
 
@@ -132,6 +121,9 @@ const Modal = ({
           return (
             contact?.givenName
               ?.toLowerCase()
+              .indexOf(searchQuery.toLowerCase()) !== -1 ||
+            contact?.familyName
+              ?.toLowerCase()
               .indexOf(searchQuery.toLowerCase()) !== -1
           );
         });
@@ -139,7 +131,7 @@ const Modal = ({
       } else if (allContacts.length > 0) {
         setFilteredContacts(allContacts);
       }
-    }, 1000);
+    }, 500);
 
     return () => clearTimeout(timeout);
   }, [searchQuery]);
@@ -241,7 +233,7 @@ const Modal = ({
               closeModal();
             }}>
             <Text style={{...styles.buttonTextStyles, color: '#03c04a'}}>
-              Save
+              Add
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -266,6 +258,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: width,
     height: height,
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,

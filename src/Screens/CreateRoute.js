@@ -32,6 +32,7 @@ import {
   check,
   openSettings,
 } from 'react-native-permissions';
+import Geolocation from 'react-native-geolocation-service';
 
 const {width, height} = Dimensions.get('screen');
 
@@ -113,17 +114,25 @@ const CreateRoute = ({navigation}) => {
   }, [destination, name, quickRoute, deliveryMode, subscribers, interval]);
 
   useEffect(() => {
-    setModalElement(() => (
-      <Modal
-        background={'white'}
-        closeModal={closePopup}
-        onClick={handleAddSubscribers}
-        list={contacts}
-        subscribers={subscribers}
-        state={modalState}>
-        Contacts
-      </Modal>
-    ));
+    if (modalState) {
+      setModalElement(() => (
+        <Modal
+          background={'white'}
+          closeModal={closePopup}
+          onClick={handleAddSubscribers}
+          list={contacts}
+          subscribers={subscribers}
+          state={modalState}>
+          Contacts
+        </Modal>
+      ));
+    } else {
+      //this forces a bogus update to the ele so selected contacts reset
+      //and we allow the transition to run
+      setTimeout(() => {
+        setModalElement(null);
+      }, 500);
+    }
   }, [subscribers, modalState, contacts]);
 
   const openPopup = (text, background, subtext, error) => {
@@ -207,62 +216,77 @@ const CreateRoute = ({navigation}) => {
   };
 
   const handleCreateRoute = () => {
-    const formattedSubscribers = subscribers.map(sub => JSON.stringify(sub));
     setLoading(true);
-    fetch(`${APP_URL}/api/v1/routes/create`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        Authorization: jwt,
-        'User-Agent': 'any-name',
-      },
-      mode: 'cors',
-      body: JSON.stringify({
-        routeName: name,
-        destination: destination,
-        quickRoute: quickRoute,
-        interval: interval,
-        subscribers: formattedSubscribers,
-        deliveryMode: deliveryMode,
-      }),
-    })
-      .then(res => res.json())
-      .then(async data => {
-        if (data.status === 201) {
-          setDeliveryMode(false);
-          setQuickRoute(false);
-          setName('');
-          setDestination('');
-          setInterval('');
-          setSubscribers([]);
-          navigation.navigate('Routes', {
-            update: uuid(),
-            createdRoute: 'success',
-            updatedRoute: '',
-            deletedRoute: '',
+    Geolocation.getCurrentPosition(
+      position => {
+        const formattedSubscribers = subscribers.map(sub =>
+          JSON.stringify(sub),
+        );
+        fetch(`${APP_URL}/api/v1/routes/create`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: jwt,
+            'User-Agent': 'any-name',
+          },
+          mode: 'cors',
+          body: JSON.stringify({
+            routeName: name,
+            destination: destination,
+            quickRoute: quickRoute,
+            interval: interval,
+            subscribers: formattedSubscribers,
+            deliveryMode: deliveryMode,
+            currentLocation: {
+              lat: position.coords.latitude,
+              long: position.coords.longitude,
+            },
+            offset: new Date().getTimezoneOffset() / 60,
+          }),
+        })
+          .then(res => res.json())
+          .then(async data => {
+            if (data.status === 201) {
+              setDeliveryMode(false);
+              setQuickRoute(false);
+              setName('');
+              setDestination('');
+              setInterval('');
+              setSubscribers([]);
+              navigation.navigate('Routes', {
+                update: uuid(),
+                createdRoute: 'success',
+                updatedRoute: '',
+                deletedRoute: '',
+              });
+            } else {
+              setLoading(false);
+              openPopup(
+                `Unable to create route:`,
+                '#DC143C',
+                data.body.message[0],
+                true,
+              );
+              setTimeout(() => {
+                closePopup(true);
+              }, 3000);
+            }
+          })
+          .catch(error => {
+            setLoading(false);
+            openPopup('Something went wrong...', '#DC143C', null, true);
+            setTimeout(() => {
+              closePopup(true);
+            }, 3000);
           });
-        } else {
-          setLoading(false);
-          openPopup(
-            `Unable to create route:`,
-            '#DC143C',
-            data.body.message[0],
-            true,
-          );
-          setTimeout(() => {
-            closePopup(true);
-          }, 3000);
-        }
-      })
-      .catch(error => {
-        setLoading(false);
-        openPopup('Something went wrong...', '#DC143C', null, true);
-        setTimeout(() => {
-          closePopup(true);
-        }, 3000);
-      });
+      },
+      error => {
+        console.log(error.code, error.message);
+      },
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
   };
 
   const data = [

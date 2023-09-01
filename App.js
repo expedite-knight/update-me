@@ -36,7 +36,7 @@ function App() {
     let storedToken = '';
 
     if (RNSecureStorage) {
-      RNSecureStorage.get(type === 'jwt' ? JWT_KEY : REFRESH_KEY)
+      await RNSecureStorage.get(type === 'jwt' ? JWT_KEY : REFRESH_KEY)
         .then(value => {
           if (value !== '') {
             setJwt(value);
@@ -101,6 +101,7 @@ function App() {
   useEffect(() => {
     const handleAuth = async () => {
       const storedToken = await handleFetchToken('jwt');
+      console.log('verifying auth w: ', storedToken);
       fetch(`${APP_URL}/api/v1/auth/verify`, {
         headers: {
           Accept: 'application/json',
@@ -112,11 +113,14 @@ function App() {
       })
         .then(res => res.json())
         .then(async data => {
+          console.log('Auth res: ', data);
           if (data.status === 200) {
             setIsAuthorized(true);
-          } else {
+          } else if (data.status === 401) {
             handleStoreToken('', 'jwt');
             await verifyRefreshToken();
+          } else {
+            setIsAuthorized(false);
           }
         })
         .catch(error => {
@@ -152,7 +156,9 @@ function App() {
           replacementToken = data.body.jwtToken;
         } else {
           await handleStoreToken('', 'refresh');
+          await handleStoreToken('', 'jwt');
           setJwt('');
+          setIsAuthorized(false);
         }
       })
       .catch(error => {
@@ -477,3 +483,4 @@ function App() {
 }
 
 export default App;
+//prepare the build and put it on terrys phone

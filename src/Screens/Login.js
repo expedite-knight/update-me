@@ -51,6 +51,8 @@ const Login = ({navigation, isAuthorized}) => {
           setError('');
 
           await handleStoreCredentials();
+          setEmail('');
+          setPassword('');
 
           navigation.navigate('Routes');
         } else {
@@ -66,7 +68,10 @@ const Login = ({navigation, isAuthorized}) => {
   }
 
   useEffect(() => {
-    if (isAuthorized && navigation) navigation.navigate('Routes');
+    if (isAuthorized && navigation) {
+      console.log('foregoing login');
+      navigation.navigate('Routes');
+    }
     handleFetchCredentials();
   }, [isAuthorized, navigation]);
 
