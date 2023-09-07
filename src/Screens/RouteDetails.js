@@ -33,6 +33,7 @@ import {
   openSettings,
 } from 'react-native-permissions';
 import Contacts from 'react-native-contacts';
+import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 
 const {width, height} = Dimensions.get('screen');
 
@@ -52,6 +53,7 @@ const RouteDetails = ({route, navigation}) => {
   const [active, setActive] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState(false);
   const [contacts, setContacts] = useState([]);
+  const [quickRoute, setQuickRoute] = useState(false);
   const [jwt, setJwt, handleStoreToken, handleFetchToken, verifyRefreshToken] =
     useContext(UserContext);
   const {routeId} = route.params;
@@ -244,10 +246,13 @@ const RouteDetails = ({route, navigation}) => {
             setInterval(JSON.stringify(data.body.message.interval));
             setActive(data.body.message.active);
             setSubscribers([...data.body.message.subscribers]);
-            //change this eventually but it can be undefined and that might break stuff
             setDeliveryMode(data.body.message.deliveryMode ? true : false);
+            setQuickRoute(data.body.message.quickRoute);
           } else {
-            console.log('Something went wrong...');
+            console.log('Route no longer exists.');
+            navigation.navigate('Routes', {
+              update: uuid(),
+            });
           }
           setLoading(false);
         })
@@ -411,7 +416,6 @@ const RouteDetails = ({route, navigation}) => {
 
   const handleActivation = async e => {
     setActive(true);
-    console.log('here');
     try {
       if (Platform.OS === 'android') {
         const frontPerm = await PermissionsAndroid.request(
@@ -704,17 +708,30 @@ const RouteDetails = ({route, navigation}) => {
                     marginTop: 50,
                     marginBottom: 10,
                     marginHorizontal: 20,
+                    display: 'flex',
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    alignItems: 'center',
                   }}
                   onPress={() =>
                     active ? handleDeactivation() : handleActivation()
                   }>
-                  <Text
-                    style={{
-                      ...styles.headerTextStyles,
-                      color: active ? '#03c04a' : 'gray',
-                    }}>
-                    {active ? 'Active' : 'Inactive'}
-                  </Text>
+                  {quickRoute ? (
+                    <FontAwesome
+                      name="fire"
+                      size={30}
+                      color={active ? '#03c04a' : 'gray'}
+                      style={{paddingVertical: 10, paddingHorizontal: 20}}
+                    />
+                  ) : (
+                    <Text
+                      style={{
+                        ...styles.headerTextStyles,
+                        color: active ? '#03c04a' : 'gray',
+                      }}>
+                      {active ? 'Active' : 'Inactive'}
+                    </Text>
+                  )}
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => Clipboard.setString(routeId)}>
                   <Text
@@ -813,6 +830,8 @@ const RouteDetails = ({route, navigation}) => {
                             } catch (err) {
                               console.log('error opening imessage or sms');
                             }
+                          } else {
+                            Linking.openURL(`tel:${value.number}`);
                           }
                         }}
                         key={index}>

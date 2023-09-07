@@ -101,7 +101,7 @@ function App() {
   useEffect(() => {
     const handleAuth = async () => {
       const storedToken = await handleFetchToken('jwt');
-      console.log('verifying auth w: ', storedToken);
+      console.log('verifying auth w: ', APP_URL);
       fetch(`${APP_URL}/api/v1/auth/verify`, {
         headers: {
           Accept: 'application/json',

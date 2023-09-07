@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     display: 'flex',
     alignItems: 'center',
     zIndex: 1,
-    backgroundColor: 'rgba(0, 0, 0, .2)',
+    backgroundColor: 'rgba(0, 0, 0, .1)',
     width: width,
     height: height,
     overflow: 'visible',

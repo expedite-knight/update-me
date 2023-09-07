@@ -13,7 +13,8 @@ import Swipeable from 'react-native-gesture-handler/Swipeable';
 import {useState, useEffect, useContext} from 'react';
 import {STORE_KEY, APP_URL, DEV_URL} from '@env';
 import {useNavigation} from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 import Geolocation from 'react-native-geolocation-service';
 import uuid from 'react-uuid';
 import {
@@ -38,9 +39,17 @@ const RouteCard = props => {
           alignItems: 'center',
         }}>
         <TouchableOpacity
-          style={styles.deleteButton}
+          style={{
+            ...styles.deleteButton,
+            backgroundColor: active ? 'gainsboro' : 'pink',
+          }}
+          disabled={active ? true : false}
           onPress={!active ? handleDeleteRoute : null}>
-          <Icon name="trash" size={25} color={'#de3623'} />
+          <Ionicons
+            name="trash"
+            size={25}
+            color={active ? 'gray' : '#de3623'}
+          />
         </TouchableOpacity>
       </View>
     );
@@ -204,6 +213,7 @@ const RouteCard = props => {
                 props.closePopup();
               }, 3000);
             } else {
+              props.updateRoutes();
               props.openPopup('Route deactivated successfully', '#1e90ff');
               setTimeout(() => {
                 props.closePopup();
@@ -362,7 +372,19 @@ const RouteCard = props => {
               borderRadius: 50,
             }}
             onPress={active ? handleDeactivation : handleActivation}>
-            <Icon name="power" size={30} color={active ? '#03c04a' : 'gray'} />
+            {props.quickRoute ? (
+              <FontAwesome
+                name="fire"
+                size={30}
+                color={active ? '#03c04a' : 'gray'}
+              />
+            ) : (
+              <Ionicons
+                name="power"
+                size={30}
+                color={active ? '#03c04a' : 'gray'}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </TouchableOpacity>

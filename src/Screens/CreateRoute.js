@@ -149,7 +149,8 @@ const CreateRoute = ({navigation}) => {
       toValue: 0,
       useNativeDriver: true,
     }).start();
-    setModalState(prev => !prev);
+
+    !error && setModalState(true);
   };
 
   const closePopup = error => {
@@ -158,7 +159,7 @@ const CreateRoute = ({navigation}) => {
       toValue: -height,
       useNativeDriver: true,
     }).start();
-    setModalState(prev => !prev);
+    !error && setModalState(false);
   };
 
   async function handleFetchContacts() {

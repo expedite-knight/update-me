@@ -22,6 +22,7 @@ import EncryptedStorage from 'react-native-encrypted-storage';
 
 const {width, height} = Dimensions.get('screen');
 
+//wtf
 const Login = ({navigation, isAuthorized}) => {
   const [jwt, setJwt, handleStoreToken] = useContext(UserContext);
   const [email, setEmail] = useState('');

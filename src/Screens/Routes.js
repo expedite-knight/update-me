@@ -249,7 +249,6 @@ const Routes = ({route, navigation, isAuthorized}) => {
             for (let i = 0; BackgroundService.isRunning(); i++) {
               Geolocation.getCurrentPosition(
                 position => {
-                  console.log('sending location with token: ', accessToken);
                   const date = new Date(position.timestamp);
                   fetch(`${APP_URL}/api/v1/users/location/update`, {
                     method: 'POST',
@@ -412,7 +411,6 @@ const Routes = ({route, navigation, isAuthorized}) => {
   }
 
   async function handleFetchRoutes(token, replacementUsed) {
-    setRefreshing(true);
     if (token) {
       fetch(`${APP_URL}/api/v1/users/routes`, {
         method: 'GET',
@@ -431,14 +429,6 @@ const Routes = ({route, navigation, isAuthorized}) => {
           if (data.status === 200) {
             setRoutes(() => [...data.routes]);
             setRefreshing(false);
-            if (replacementUsed) {
-              //token not being updated so maybe stopping the task and starting
-              //again will help update the token
-              // await handleStopTask();
-              // await handleStartTask();
-              //not sure if the above works, try putting the token in a regular
-              //let variable and try to update that
-            }
           } else {
             console.log('STATUS:', data.status, 'with error:', data);
           }
@@ -466,6 +456,8 @@ const Routes = ({route, navigation, isAuthorized}) => {
             openPopup={openPopup}
             closePopup={closePopup}
             destination={route.destination}
+            updateRoutes={() => handleFetchRoutes(accessToken)}
+            quickRoute={route.quickRoute}
           />
         );
       });
