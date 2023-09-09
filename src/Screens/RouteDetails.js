@@ -37,6 +37,8 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 
 const {width, height} = Dimensions.get('screen');
 
+//is this some kind of joke
+//lets actually refresh
 const RouteDetails = ({route, navigation}) => {
   const [popupY, setPopupY] = useState(new Animated.Value(-height * 2));
   const [modalY, setModalY] = useState(new Animated.Value(-height * 2));

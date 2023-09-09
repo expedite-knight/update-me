@@ -26,12 +26,40 @@ import {
 
 const {width, height} = Dimensions.get('screen');
 
+//wtf why
+
 const RouteCard = props => {
   const [active, setActive] = useState(props.active);
+  const [paused, setPaused] = useState(props.paused | false);
   const [error, setError] = useState('');
   const nav = useNavigation();
 
-  const rightSwipe = (progress, dragX) => {
+  const renderPauseButton = (progress, dragX) => {
+    return (
+      <View
+        style={{
+          justifyContent: 'center',
+          alignItems: 'center',
+          flexDirection: 'row',
+        }}>
+        <TouchableOpacity
+          style={{
+            ...styles.deleteButton,
+            backgroundColor: paused ? 'gainsboro' : '#FFE992',
+          }}
+          disabled={!active ? true : false}
+          onPress={active ? (paused ? handleUnpause : handlePauseRoute) : null}>
+          <Ionicons
+            name={paused ? 'play' : 'pause'}
+            size={25}
+            color={paused ? 'gray' : '#FFC30B'}
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderDeleteButton = (progress, dragX) => {
     return (
       <View
         style={{
@@ -297,6 +325,236 @@ const RouteCard = props => {
     }
   };
 
+  const sendPausedLocation = () => {
+    Geolocation.getCurrentPosition(
+      position => {
+        fetch(`${APP_URL}/api/v1/routes/pause`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: props.jwt,
+            'User-Agent': 'any-name',
+          },
+          mode: 'cors',
+          body: JSON.stringify({
+            route: props.id,
+            currentLocation: {
+              lat: position.coords.latitude,
+              long: position.coords.longitude,
+            },
+            offset: new Date().getTimezoneOffset() / 60,
+          }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status !== 200) {
+              setPaused(true);
+              props.openPopup('Unable to pause route', '#DC143C');
+              setTimeout(() => {
+                props.closePopup();
+              }, 3000);
+            } else {
+              props.updateRoutes();
+              props.openPopup('Route paused successfully', '#1e90ff');
+              setTimeout(() => {
+                props.closePopup();
+              }, 3000);
+            }
+          })
+          .catch(error => {
+            console.log('ERROR:', error);
+          });
+      },
+      error => {
+        console.log(error.code, error.message);
+      },
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  };
+
+  const handlePauseRoute = async e => {
+    e.stopPropagation();
+    setPaused(true);
+
+    try {
+      if (Platform.OS === 'android') {
+        const frontPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Foreground Geolocation Permission',
+            message: 'Can we access your location?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        const backPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+          {
+            title: 'Background Geolocation Permission',
+            message: 'Can we access your location in the background?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (frontPerm === 'granted' && backPerm === 'granted') {
+          sendPausedLocation();
+        } else {
+          console.log('Permission not granted');
+          setPaused(false);
+        }
+      } else {
+        const frontPerm = await request(
+          PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+        ).then(result => {
+          if (result === 'blocked') {
+            openSettings().catch(err => console.log('Unable to open settings'));
+          } else {
+            return result;
+          }
+        });
+        const backPerm = await request(PERMISSIONS.IOS.LOCATION_ALWAYS).then(
+          result => {
+            if (result === 'blocked') {
+              openSettings().catch(err =>
+                console.log('Unable to open settings'),
+              );
+            } else {
+              return result;
+            }
+          },
+        );
+        if (frontPerm === 'granted' && backPerm === 'granted') {
+          sendPausedLocation();
+        } else {
+          console.log('Permission not granted');
+          setPaused(false);
+        }
+      }
+    } catch (err) {
+      console.log('Err: ', err);
+      setPaused(false);
+    }
+  };
+
+  const sendUnpausedLocation = () => {
+    Geolocation.getCurrentPosition(
+      position => {
+        fetch(`${APP_URL}/api/v1/routes/unpause`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: props.jwt,
+            'User-Agent': 'any-name',
+          },
+          mode: 'cors',
+          body: JSON.stringify({
+            route: props.id,
+            currentLocation: {
+              lat: position.coords.latitude,
+              long: position.coords.longitude,
+            },
+            offset: new Date().getTimezoneOffset() / 60,
+          }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status !== 200) {
+              setPaused(true);
+              props.openPopup('Unable to unpause route', '#DC143C');
+              setTimeout(() => {
+                props.closePopup();
+              }, 3000);
+            } else {
+              props.updateRoutes();
+              props.openPopup('Route unpaused successfully', '#1e90ff');
+              setTimeout(() => {
+                props.closePopup();
+              }, 3000);
+            }
+          })
+          .catch(error => {
+            console.log('ERROR:', error);
+          });
+      },
+      error => {
+        console.log(error.code, error.message);
+      },
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  };
+
+  const handleUnpause = async e => {
+    e.stopPropagation();
+    setPaused(false);
+
+    try {
+      if (Platform.OS === 'android') {
+        const frontPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Foreground Geolocation Permission',
+            message: 'Can we access your location?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        const backPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+          {
+            title: 'Background Geolocation Permission',
+            message: 'Can we access your location in the background?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (frontPerm === 'granted' && backPerm === 'granted') {
+          sendUnpausedLocation();
+        } else {
+          console.log('Permission not granted');
+          setPaused(true);
+        }
+      } else {
+        const frontPerm = await request(
+          PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+        ).then(result => {
+          if (result === 'blocked') {
+            openSettings().catch(err => console.log('Unable to open settings'));
+          } else {
+            return result;
+          }
+        });
+        const backPerm = await request(PERMISSIONS.IOS.LOCATION_ALWAYS).then(
+          result => {
+            if (result === 'blocked') {
+              openSettings().catch(err =>
+                console.log('Unable to open settings'),
+              );
+            } else {
+              return result;
+            }
+          },
+        );
+        if (frontPerm === 'granted' && backPerm === 'granted') {
+          sendUnpausedLocation();
+        } else {
+          console.log('Permission not granted');
+          setPaused(true);
+        }
+      }
+    } catch (err) {
+      console.log('Err: ', err);
+      setPaused(true);
+    }
+  };
+
   function handleDeleteRoute() {
     fetch(`${APP_URL}/api/v1/routes/delete`, {
       method: 'POST',
@@ -332,7 +590,9 @@ const RouteCard = props => {
 
   return (
     <Swipeable
-      renderRightActions={rightSwipe}
+      renderRightActions={() =>
+        active ? (paused ? null : renderPauseButton()) : renderDeleteButton()
+      }
       containerStyle={{
         overflow: 'visible',
       }}>
@@ -340,16 +600,27 @@ const RouteCard = props => {
         style={styles.container}
         onPress={() => nav.navigate('RouteDetails', {routeId: props.id})}>
         <View style={{gap: 5}}>
-          <Text
-            numberOfLines={1}
-            style={{
-              fontWeight: '400',
-              fontSize: 20,
-              color: 'black',
-              maxWidth: width - 100,
-            }}>
-            {props.routeName}
-          </Text>
+          <View style={{flexDirection: 'row', alignItems: 'center', gap: 10}}>
+            <Text
+              numberOfLines={1}
+              style={{
+                fontWeight: '400',
+                fontSize: 20,
+                color: 'black',
+                maxWidth: width - 100,
+              }}>
+              {props.routeName}
+            </Text>
+            {false ? (
+              <View
+                style={{
+                  backgroundColor: '#FFE992',
+                  borderRadius: 10,
+                  height: 10,
+                  width: 10,
+                }}></View>
+            ) : null}
+          </View>
           <Text
             numberOfLines={1}
             style={{
@@ -366,23 +637,33 @@ const RouteCard = props => {
             style={{
               justifyContent: 'center',
               alignItems: 'center',
-              backgroundColor: active ? '#AFE1AF' : 'gainsboro',
+              backgroundColor: active
+                ? paused
+                  ? '#FFE992'
+                  : '#AFE1AF'
+                : 'gainsboro',
               width: 50,
               height: 50,
               borderRadius: 50,
             }}
-            onPress={active ? handleDeactivation : handleActivation}>
+            onPress={
+              active
+                ? paused
+                  ? handleUnpause
+                  : handleDeactivation
+                : handleActivation
+            }>
             {props.quickRoute ? (
               <FontAwesome
-                name="fire"
-                size={30}
-                color={active ? '#03c04a' : 'gray'}
+                name={paused ? 'play' : 'fire'}
+                size={paused ? 25 : 30}
+                color={active ? (paused ? '#FFC30B' : '#03c04a') : 'gray'}
               />
             ) : (
               <Ionicons
-                name="power"
+                name={paused ? 'play' : 'power'}
                 size={30}
-                color={active ? '#03c04a' : 'gray'}
+                color={active ? (paused ? '#FFC30B' : '#03c04a') : 'gray'}
               />
             )}
           </TouchableOpacity>

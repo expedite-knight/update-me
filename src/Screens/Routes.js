@@ -458,6 +458,7 @@ const Routes = ({route, navigation, isAuthorized}) => {
             destination={route.destination}
             updateRoutes={() => handleFetchRoutes(accessToken)}
             quickRoute={route.quickRoute}
+            paused={route.paused}
           />
         );
       });
