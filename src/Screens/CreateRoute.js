@@ -36,8 +36,6 @@ import Geolocation from 'react-native-geolocation-service';
 
 const {width, height} = Dimensions.get('screen');
 
-//refresh
-//oh oops
 const CreateRoute = ({navigation}) => {
   const [errorPopupY, setErrorPopupY] = useState(
     new Animated.Value(-height * 2),
@@ -247,6 +245,10 @@ const CreateRoute = ({navigation}) => {
               long: position.coords.longitude,
             },
             offset: new Date().getTimezoneOffset() / 60,
+            timezone: new Date()
+              .toLocaleString('en', {timeZoneName: 'short'})
+              .split(' ')
+              .pop(),
           }),
         })
           .then(res => res.json())

@@ -63,6 +63,8 @@ const Modal = ({
     }
   }
 
+  console.log('filtered: ', allContacts.length);
+
   useEffect(() => {
     sortContacts();
     setFormattedContacts(() => {
@@ -111,8 +113,11 @@ const Modal = ({
 
   useEffect(() => {
     setAllContacts(list);
-    setFilteredContacts(list);
   }, [list]);
+
+  useEffect(() => {
+    setFilteredContacts(allContacts);
+  }, [allContacts]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {

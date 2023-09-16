@@ -37,8 +37,6 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome5';
 
 const {width, height} = Dimensions.get('screen');
 
-//is this some kind of joke
-//lets actually refresh
 const RouteDetails = ({route, navigation}) => {
   const [popupY, setPopupY] = useState(new Animated.Value(-height * 2));
   const [modalY, setModalY] = useState(new Animated.Value(-height * 2));
@@ -63,6 +61,7 @@ const RouteDetails = ({route, navigation}) => {
   const [modalElement, setModalElement] = useState();
   const [modalState, setModalState] = useState(false);
   const [update, setUpdate] = useState(false);
+  const [paused, setPaused] = useState(false);
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -250,6 +249,7 @@ const RouteDetails = ({route, navigation}) => {
             setSubscribers([...data.body.message.subscribers]);
             setDeliveryMode(data.body.message.deliveryMode ? true : false);
             setQuickRoute(data.body.message.quickRoute);
+            setPaused(data.body.message.paused);
           } else {
             console.log('Route no longer exists.');
             navigation.navigate('Routes', {
@@ -377,6 +377,10 @@ const RouteDetails = ({route, navigation}) => {
               long: position.coords.longitude,
             },
             offset: new Date().getTimezoneOffset() / 60,
+            timezone: new Date()
+              .toLocaleString('en', {timeZoneName: 'short'})
+              .split(' ')
+              .pop(),
           }),
         })
           .then(res => res.json())
@@ -500,6 +504,10 @@ const RouteDetails = ({route, navigation}) => {
               long: position.coords.longitude,
             },
             offset: new Date().getTimezoneOffset() / 60,
+            timezone: new Date()
+              .toLocaleString('en', {timeZoneName: 'short'})
+              .split(' ')
+              .pop(),
           }),
         })
           .then(res => res.json())
@@ -615,6 +623,10 @@ const RouteDetails = ({route, navigation}) => {
               long: position.coords.longitude,
             },
             offset: new Date().getTimezoneOffset() / 60,
+            timezone: new Date()
+              .toLocaleString('en', {timeZoneName: 'short'})
+              .split(' ')
+              .pop(),
           }),
         })
           .then(res => res.json())
@@ -650,6 +662,123 @@ const RouteDetails = ({route, navigation}) => {
       {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
     );
   }
+
+  const handleUnpause = async e => {
+    setPaused(false);
+
+    try {
+      if (Platform.OS === 'android') {
+        const frontPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Foreground Geolocation Permission',
+            message: 'Can we access your location?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        const backPerm = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+          {
+            title: 'Background Geolocation Permission',
+            message: 'Can we access your location in the background?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (frontPerm === 'granted' && backPerm === 'granted') {
+          sendUnpausedLocation();
+        } else {
+          console.log('Permission not granted');
+          setPaused(true);
+        }
+      } else {
+        const frontPerm = await request(
+          PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+        ).then(result => {
+          if (result === 'blocked') {
+            openSettings().catch(err => console.log('Unable to open settings'));
+          } else {
+            return result;
+          }
+        });
+        const backPerm = await request(PERMISSIONS.IOS.LOCATION_ALWAYS).then(
+          result => {
+            if (result === 'blocked') {
+              openSettings().catch(err =>
+                console.log('Unable to open settings'),
+              );
+            } else {
+              return result;
+            }
+          },
+        );
+        if (frontPerm === 'granted' && backPerm === 'granted') {
+          sendUnpausedLocation();
+        } else {
+          console.log('Permission not granted');
+          setPaused(true);
+        }
+      }
+    } catch (err) {
+      console.log('Err: ', err);
+      setPaused(true);
+    }
+  };
+
+  const sendUnpausedLocation = () => {
+    Geolocation.getCurrentPosition(
+      position => {
+        fetch(`${APP_URL}/api/v1/routes/unpause`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: jwt,
+            'User-Agent': 'any-name',
+          },
+          mode: 'cors',
+          body: JSON.stringify({
+            route: routeId,
+            currentLocation: {
+              lat: position.coords.latitude,
+              long: position.coords.longitude,
+            },
+            offset: new Date().getTimezoneOffset() / 60,
+            timezone: new Date()
+              .toLocaleString('en', {timeZoneName: 'short'})
+              .split(' ')
+              .pop(),
+          }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status !== 200) {
+              setPaused(true);
+              openPopup('Unable to unpause route', '#DC143C');
+              setTimeout(() => {
+                closePopup();
+              }, 3000);
+            } else {
+              openPopup('Route unpaused successfully', '#1e90ff');
+              setTimeout(() => {
+                closePopup();
+              }, 3000);
+            }
+          })
+          .catch(error => {
+            console.log('ERROR:', error);
+          });
+      },
+      error => {
+        console.log(error.code, error.message);
+      },
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  };
 
   const data = [
     {key: '1', value: '5m'},
@@ -705,7 +834,11 @@ const RouteDetails = ({route, navigation}) => {
               <>
                 <TouchableOpacity
                   style={{
-                    backgroundColor: active ? '#AFE1AF' : 'gainsboro',
+                    backgroundColor: active
+                      ? paused
+                        ? '#FFE992'
+                        : '#AFE1AF'
+                      : 'gainsboro',
                     borderRadius: 10,
                     marginTop: 50,
                     marginBottom: 10,
@@ -716,22 +849,30 @@ const RouteDetails = ({route, navigation}) => {
                     alignItems: 'center',
                   }}
                   onPress={() =>
-                    active ? handleDeactivation() : handleActivation()
+                    active
+                      ? paused
+                        ? handleUnpause()
+                        : handleDeactivation()
+                      : handleActivation()
                   }>
                   {quickRoute ? (
                     <FontAwesome
                       name="fire"
                       size={30}
-                      color={active ? '#03c04a' : 'gray'}
+                      color={active ? (paused ? '#FFC30B' : '#03c04a') : 'gray'}
                       style={{paddingVertical: 10, paddingHorizontal: 20}}
                     />
                   ) : (
                     <Text
                       style={{
                         ...styles.headerTextStyles,
-                        color: active ? '#03c04a' : 'gray',
+                        color: active
+                          ? paused
+                            ? '#FFC30B'
+                            : '#03c04a'
+                          : 'gray',
                       }}>
-                      {active ? 'Active' : 'Inactive'}
+                      {active ? (paused ? 'Paused' : 'Active') : 'Inactive'}
                     </Text>
                   )}
                 </TouchableOpacity>

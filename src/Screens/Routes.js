@@ -31,6 +31,7 @@ import {useFocusEffect} from '@react-navigation/native';
 
 const {width, height} = Dimensions.get('screen');
 
+//serious
 const Routes = ({route, navigation, isAuthorized}) => {
   const [jwt, setJwt, handleStoreToken, handleFetchToken, verifyRefreshToken] =
     useContext(UserContext);
@@ -166,6 +167,10 @@ const Routes = ({route, navigation, isAuthorized}) => {
                       lat: position.coords.latitude,
                       long: position.coords.longitude,
                       offset: new Date().getTimezoneOffset() / 60,
+                      timezone: new Date()
+                        .toLocaleString('en', {timeZoneName: 'short'})
+                        .split(' ')
+                        .pop(),
                     }),
                   })
                     .then(res => res.json())
@@ -264,6 +269,10 @@ const Routes = ({route, navigation, isAuthorized}) => {
                       lat: position.coords.latitude,
                       long: position.coords.longitude,
                       offset: new Date().getTimezoneOffset() / 60,
+                      timezone: new Date()
+                        .toLocaleString('en', {timeZoneName: 'short'})
+                        .split(' ')
+                        .pop(),
                     }),
                   })
                     .then(res => res.json())

@@ -26,8 +26,6 @@ import {
 
 const {width, height} = Dimensions.get('screen');
 
-//wtf why
-
 const RouteCard = props => {
   const [active, setActive] = useState(props.active);
   const [paused, setPaused] = useState(props.paused | false);
@@ -103,6 +101,10 @@ const RouteCard = props => {
               long: position.coords.longitude,
             },
             offset: new Date().getTimezoneOffset() / 60,
+            timezone: new Date()
+              .toLocaleString('en', {timeZoneName: 'short'})
+              .split(' ')
+              .pop(),
           }),
         })
           .then(res => res.json())
@@ -230,6 +232,10 @@ const RouteCard = props => {
               long: position.coords.longitude,
             },
             offset: new Date().getTimezoneOffset() / 60,
+            timezone: new Date()
+              .toLocaleString('en', {timeZoneName: 'short'})
+              .split(' ')
+              .pop(),
           }),
         })
           .then(res => res.json())
@@ -345,6 +351,10 @@ const RouteCard = props => {
               long: position.coords.longitude,
             },
             offset: new Date().getTimezoneOffset() / 60,
+            timezone: new Date()
+              .toLocaleString('en', {timeZoneName: 'short'})
+              .split(' ')
+              .pop(),
           }),
         })
           .then(res => res.json())
@@ -460,6 +470,10 @@ const RouteCard = props => {
               long: position.coords.longitude,
             },
             offset: new Date().getTimezoneOffset() / 60,
+            timezone: new Date()
+              .toLocaleString('en', {timeZoneName: 'short'})
+              .split(' ')
+              .pop(),
           }),
         })
           .then(res => res.json())
