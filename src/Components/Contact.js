@@ -18,9 +18,14 @@ const Contact = ({
   addToSelected,
   state,
   selected: init,
+  customContact,
 }) => {
   const [number, setNumber] = useState('');
   const [selected, setSelected] = useState(init);
+
+  useEffect(() => {
+    if (customContact) setSelected(true);
+  }, []);
 
   useEffect(() => {
     let temp = contact.phoneNumbers[0].number;

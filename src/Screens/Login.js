@@ -22,7 +22,7 @@ import EncryptedStorage from 'react-native-encrypted-storage';
 
 const {width, height} = Dimensions.get('screen');
 
-//a joke?
+//update here
 const Login = ({navigation, isAuthorized}) => {
   const [jwt, setJwt, handleStoreToken] = useContext(UserContext);
   const [email, setEmail] = useState('');
@@ -32,6 +32,7 @@ const Login = ({navigation, isAuthorized}) => {
 
   function handleLogin() {
     setLoading(true);
+    console.log('logging into: ', APP_URL);
     fetch(`${APP_URL}/api/v1/auth/login`, {
       method: 'POST',
       headers: {

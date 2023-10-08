@@ -53,7 +53,11 @@ const Modal = ({
       setAllContacts(prev => {
         return [
           ...notAlreadyAdded,
-          {...alreadyAdded[0], phoneNumbers: [{number: customNumber}]},
+          {
+            ...alreadyAdded[0],
+            phoneNumbers: [{number: customNumber}],
+            customContact: true,
+          },
         ];
       });
 
@@ -62,8 +66,6 @@ const Modal = ({
       }
     }
   }
-
-  console.log('filtered: ', allContacts.length);
 
   useEffect(() => {
     sortContacts();
@@ -164,16 +166,19 @@ const Modal = ({
           <FlatList
             scrollEnabled={false}
             data={formattedContacts}
-            renderItem={({item}) => (
-              <Contact
-                contact={item.contact}
-                addToSelected={addToSelected}
-                removeFromSelected={removeFromSelected}
-                key={JSON.stringify(item.contact)}
-                state={state}
-                init={item.init}
-              />
-            )}
+            renderItem={({item}) => {
+              return (
+                <Contact
+                  contact={item.contact}
+                  addToSelected={addToSelected}
+                  removeFromSelected={removeFromSelected}
+                  key={JSON.stringify(item.contact)}
+                  state={state}
+                  init={item.init}
+                  customContact={item.contact.customContact}
+                />
+              );
+            }}
             keyExtractor={item => item.key}
             ListFooterComponent={() => (
               <Text style={{flex: 1, textAlign: 'center', marginVertical: 10}}>

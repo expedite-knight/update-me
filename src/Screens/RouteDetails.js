@@ -19,7 +19,7 @@ import {
 } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {UserContext} from '../../UserContext';
-import {STORE_KEY, APP_URL, DEV_URL} from '@env';
+import {STORE_KEY, APP_URL, DEV_URL, GOOGLE_API_KEY} from '@env';
 import uuid from 'react-uuid';
 import {SelectList} from 'react-native-dropdown-select-list';
 import Popup from '../Components/Popup';
@@ -34,9 +34,11 @@ import {
 } from 'react-native-permissions';
 import Contacts from 'react-native-contacts';
 import FontAwesome from 'react-native-vector-icons/FontAwesome5';
+import {GooglePlacesAutocomplete} from 'react-native-google-places-autocomplete';
 
 const {width, height} = Dimensions.get('screen');
 
+//details page update
 const RouteDetails = ({route, navigation}) => {
   const [popupY, setPopupY] = useState(new Animated.Value(-height * 2));
   const [modalY, setModalY] = useState(new Animated.Value(-height * 2));
@@ -789,7 +791,11 @@ const RouteDetails = ({route, navigation}) => {
   ];
 
   return (
-    <ScrollView style={{flex: 1}} scrollEnabled={!false} ref={scrollRef}>
+    <ScrollView
+      style={{flex: 1}}
+      scrollEnabled={!false}
+      ref={scrollRef}
+      keyboardShouldPersistTaps="handled">
       {!loading ? (
         <>
           <Animated.View
@@ -828,6 +834,7 @@ const RouteDetails = ({route, navigation}) => {
             </Popup>
           </Animated.View>
           <ScrollView
+            keyboardShouldPersistTaps="handled"
             automaticallyAdjustKeyboardInsets={true}
             style={{display: modalState ? 'none' : 'flex'}}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -901,17 +908,46 @@ const RouteDetails = ({route, navigation}) => {
                     onChangeText={e => setName(e.valueOf())}
                     editable={!active}
                   />
-                  <TextInput
-                    style={{
-                      ...styles.inputStyles,
-                      color: active ? 'gray' : 'black',
-                    }}
-                    placeholder="Destination address"
-                    value={destination}
-                    onChangeText={e => setDestination(e.valueOf())}
-                    enabled={false}
-                    editable={false}
-                  />
+                  {!active ? (
+                    <ScrollView
+                      horizontal={true}
+                      keyboardShouldPersistTaps="handled">
+                      <GooglePlacesAutocomplete
+                        placeholder={destination}
+                        query={{key: GOOGLE_API_KEY}}
+                        styles={{
+                          textInputContainer: {
+                            flex: 1,
+                            width: 2000, //this is not correct, but it works for now
+                          },
+                          textInput: styles.inputStyles,
+                        }}
+                        fetchDetails={true}
+                        onPress={(data, details = null) => {
+                          setDestination(data.description);
+                        }}
+                        onFail={error => console.log(error)}
+                        onNotFound={() => console.log('no results')}
+                        listEmptyComponent={() => (
+                          <View style={{flex: 1}}>
+                            <Text>No results were found</Text>
+                          </View>
+                        )}
+                      />
+                    </ScrollView>
+                  ) : (
+                    <TextInput
+                      style={{
+                        ...styles.inputStyles,
+                        color: active ? 'gray' : 'black',
+                      }}
+                      placeholder="Destination address"
+                      value={destination}
+                      onChangeText={e => setDestination(e.valueOf())}
+                      enabled={false}
+                      editable={false}
+                    />
+                  )}
                   {active || deliveryMode ? (
                     <Text
                       style={{

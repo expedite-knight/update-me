@@ -22,6 +22,7 @@ import Popup from '../Components/Popup';
 
 const {width, height} = Dimensions.get('screen');
 
+//refresh
 const Settings = ({navigation}) => {
   const [errorPopupY, setErrorPopupY] = useState(
     new Animated.Value(-height * 2),
@@ -34,6 +35,7 @@ const Settings = ({navigation}) => {
     useContext(UserContext);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [number, setNumber] = useState(null);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -75,6 +77,7 @@ const Settings = ({navigation}) => {
         if (data.status === 200) {
           setFirstName(data.user.firstName);
           setLastName(data.user.lastName);
+          setNumber(data.user.phoneNumber);
           setLoading(false);
         } else {
           navigation.navigate('Login');
@@ -101,6 +104,7 @@ const Settings = ({navigation}) => {
         firstName: firstName,
         lastName: lastName,
         password: password,
+        number: number,
       }),
     })
       .then(res => res.json())
@@ -197,6 +201,25 @@ const Settings = ({navigation}) => {
                     value={password}
                     onChangeText={e => setPassword(e.valueOf())}
                   />
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                    }}>
+                    <Text
+                      style={{
+                        ...styles.inputStyles,
+                        borderBottomColor: 'white',
+                      }}>
+                      +1
+                    </Text>
+                    <TextInput
+                      style={{...styles.inputStyles, width: width - 80}}
+                      placeholder="Number"
+                      value={number}
+                      onChangeText={e => setNumber(e.valueOf())}
+                    />
+                  </View>
                 </View>
                 <View style={{gap: 10, marginHorizontal: 20, marginTop: 50}}>
                   <TouchableOpacity

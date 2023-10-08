@@ -26,7 +26,7 @@ import {
   NavigationAction,
 } from '@react-navigation/native';
 
-//serious
+//this one also needs updatting
 function App() {
   const [jwt, setJwt] = useState(null);
   const [isAuthorized, setIsAuthorized] = useState(false);

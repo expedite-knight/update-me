@@ -1,7 +1,12 @@
 import React, {useState, useEffect} from 'react';
 import {View, Text, StyleSheet, Dimensions, Animated} from 'react-native';
-import {TouchableOpacity} from 'react-native-gesture-handler';
+import {
+  GestureHandlerRootView,
+  TouchableOpacity,
+  PanGestureHandler,
+} from 'react-native-gesture-handler';
 import Ionicon from 'react-native-vector-icons/Ionicons';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
 
 const {width, height} = Dimensions.get('screen');
 
@@ -50,45 +55,54 @@ const Popup = ({
     );
   else
     return (
-      <View
-        style={{
-          ...styles.content,
-          backgroundColor: background,
-          position: 'absolute',
-          top: 10,
-          left: 20,
-        }}>
-        <View
-          style={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'row',
-            gap: 10,
-          }}>
-          <Text style={{...styles.text, color: prompt ? 'black' : 'white'}}>
-            {children}
-          </Text>
-          <Ionicon
-            name={
-              background === '#1e90ff'
-                ? 'checkmark-circle-outline'
-                : 'alert-circle-outline'
+      <GestureHandlerRootView>
+        <PanGestureHandler
+          onGestureEvent={e => {
+            if (e.nativeEvent.velocityY < -50) {
+              closePopup();
             }
-            size={30}
-            color={'white'}
-          />
-        </View>
-        {subtext && (
-          <Text
+          }}>
+          <View
             style={{
-              ...styles.text,
-              fontSize: 16,
-              color: prompt ? 'black' : 'white',
+              ...styles.content,
+              backgroundColor: background,
+              position: 'absolute',
+              top: 10,
+              left: 20,
             }}>
-            {subtext}
-          </Text>
-        )}
-      </View>
+            <View
+              style={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                gap: 10,
+              }}>
+              <Text style={{...styles.text, color: prompt ? 'black' : 'white'}}>
+                {children}
+              </Text>
+              <Ionicon
+                name={
+                  background === '#1e90ff'
+                    ? 'checkmark-circle-outline'
+                    : 'alert-circle-outline'
+                }
+                size={30}
+                color={'white'}
+              />
+            </View>
+            {subtext && (
+              <Text
+                style={{
+                  ...styles.text,
+                  fontSize: 16,
+                  color: prompt ? 'black' : 'white',
+                }}>
+                {subtext}
+              </Text>
+            )}
+          </View>
+        </PanGestureHandler>
+      </GestureHandlerRootView>
     );
 };
 

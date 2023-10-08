@@ -31,7 +31,7 @@ import {useFocusEffect} from '@react-navigation/native';
 
 const {width, height} = Dimensions.get('screen');
 
-//serious
+//okay update this one
 const Routes = ({route, navigation, isAuthorized}) => {
   const [jwt, setJwt, handleStoreToken, handleFetchToken, verifyRefreshToken] =
     useContext(UserContext);
@@ -99,19 +99,19 @@ const Routes = ({route, navigation, isAuthorized}) => {
     setUpdate(route?.params?.update);
 
     if (route?.params?.createdRoute === 'success') {
-      openPopup('Route created successfully', '#1e90ff');
+      openPopup('Route created successfully', '#1e90ff', false);
       setTimeout(() => {
         closePopup();
       }, 3000);
     }
     if (route?.params?.updatedRoute === 'success') {
-      openPopup('Route updated successfully', '#1e90ff');
+      openPopup('Route updated successfully', '#1e90ff', false);
       setTimeout(() => {
         closePopup();
       }, 3000);
     }
     if (route?.params?.deletedRoute === 'success') {
-      openPopup('Route deleted successfully', '#1e90ff');
+      openPopup('Route deleted successfully', '#1e90ff', false);
       setTimeout(() => {
         closePopup();
       }, 3000);
@@ -401,7 +401,7 @@ const Routes = ({route, navigation, isAuthorized}) => {
             } else {
               closePopup();
               setTimeout(() => {
-                openPopup('Unable to override route', '#DC143C');
+                openPopup('Unable to override route', '#DC143C', false);
               }, 1000);
               setTimeout(() => {
                 closePopup();
@@ -421,6 +421,7 @@ const Routes = ({route, navigation, isAuthorized}) => {
 
   async function handleFetchRoutes(token, replacementUsed) {
     if (token) {
+      console.log('fetching routes: ', APP_URL);
       fetch(`${APP_URL}/api/v1/users/routes`, {
         method: 'GET',
         credentials: 'include',
@@ -495,7 +496,9 @@ const Routes = ({route, navigation, isAuthorized}) => {
         </Popup>
       </Animated.View>
       <ScrollView
-        contentContainerStyle={styles.containerStyle}
+        contentContainerStyle={{
+          ...styles.contentStyles,
+        }}
         scrollEnabled={true}
         refreshControl={
           <RefreshControl
@@ -503,12 +506,12 @@ const Routes = ({route, navigation, isAuthorized}) => {
             onRefresh={() => handleFetchRoutes(accessToken)}
           />
         }>
-        <View
-          style={{
-            ...styles.contentStyles,
-          }}>
+        <View style={styles.containerStyle}>
           {routesElement.length > 0 ? (
-            routesElement
+            <>
+              {routesElement}
+              <View name="ending filler" style={styles.fillerStyle}></View>
+            </>
           ) : (
             <Text>You dont have any routes yet</Text>
           )}
@@ -516,6 +519,9 @@ const Routes = ({route, navigation, isAuthorized}) => {
       </ScrollView>
       <View
         style={{
+          position: 'absolute',
+          bottom: 0,
+          right: 0,
           justifyContent: 'center',
           alignItems: 'flex-end',
           padding: 20,
@@ -535,7 +541,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     backgroundColor: 'white',
-    gap: 20,
     padding: 20,
     position: 'relative',
   },
@@ -571,6 +576,10 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 0},
     shadowOpacity: 0.5,
     shadowRadius: 4,
+  },
+  fillerStyle: {
+    height: 100,
+    width: width,
   },
 });
 

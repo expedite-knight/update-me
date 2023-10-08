@@ -24,6 +24,7 @@ const Signup = ({navigation}) => {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [number, setNumber] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleCreateAccount = () => {
@@ -49,6 +50,7 @@ const Signup = ({navigation}) => {
           password: password,
           firstName: firstName,
           lastName: lastName,
+          number: number,
         }),
       })
         .then(res => res.json())
@@ -107,6 +109,25 @@ const Signup = ({navigation}) => {
                       value={lastName}
                       onChangeText={e => setLastName(e.valueOf())}
                     />
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      }}>
+                      <Text
+                        style={{
+                          ...styles.inputStyles,
+                          borderBottomColor: 'white',
+                        }}>
+                        +1
+                      </Text>
+                      <TextInput
+                        style={{...styles.inputStyles, width: width - 80}}
+                        placeholder="Number"
+                        value={number}
+                        onChangeText={e => setNumber(e.valueOf())}
+                      />
+                    </View>
                   </View>
                 </View>
                 <View style={{padding: 20, gap: 10}}>

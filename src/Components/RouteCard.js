@@ -26,6 +26,7 @@ import {
 
 const {width, height} = Dimensions.get('screen');
 
+//update this
 const RouteCard = props => {
   const [active, setActive] = useState(props.active);
   const [paused, setPaused] = useState(props.paused | false);
